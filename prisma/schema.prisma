@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// 1. USERS
+// -------------------------------------------------------------
+model User {
+  id           String   @id @default(uuid())
+  fullName     String   
+  email        String   @unique
+  phoneNumber  String   
+  createdAt    DateTime @default(now())
+
+  orders       Order[]
+  logs         Log[]    // Relasi ke aktivitas yang dilakukan user ini
+
+  @@map("users")
+}
+
+// -------------------------------------------------------------
+// 2. EVENTS
+// -------------------------------------------------------------
+model Event {
+  id           String   @id @default(uuid())
+  ticketName   String   
+  category     String   
+  stock        Int      
+  price        Decimal  @db.Decimal(10, 2)
+  
+  ticketImage  String?  
+  medalImage   String?  
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  participants Participant[]
+  benefits     EventBenefit[] 
+  jerseys      Jersey[]       
+  bibConfig    BibConfiguration? // Relasi 1-to-1 ke pengaturan format BIB
+
+  @@map("events")
+}
+
+// -------------------------------------------------------------
+// 3. EVENT BENEFITS
+// -------------------------------------------------------------
+model EventBenefit {
+  id          String   @id @default(uuid())
+  eventId     String   
+  
+  name        String   
+  description String   @db.Text 
+  image       String?  
+  
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@map("event_benefits")
+}
+
+// -------------------------------------------------------------
+// 4. JERSEYS
+// -------------------------------------------------------------
+model Jersey {
+  id          String   @id @default(uuid())
+  eventId     String   
+  
+  name        String   
+  type        String   
+  
+  sizes       Json     
+  image       String?  
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event       Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participants Participant[] 
+  @@map("jerseys")
+}
+
+// -------------------------------------------------------------
+// 5. ORDERS / INVOICE
+// -------------------------------------------------------------
+model Order {
+  id               String      @id @default(uuid()) 
+  userId           String
+  totalAmount      Decimal     @db.Decimal(10, 2) 
+  status           OrderStatus @default(PENDING)
+  midtransOrderId  String?     @unique 
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  
+  user             User          @relation(fields: [userId], references: [id])
+  participants     Participant[] 
+  @@map("orders")
+}
+
+// -------------------------------------------------------------
+// 6. PARTICIPANTS
+// -------------------------------------------------------------
+model Participant {
+  id                    String   @id @default(uuid())
+  orderId               String   
+  eventId               String   
+  
+  fullNameKtp           String   
+  bibName               String   
+  nik                   String   
+  gender                Gender
+  birthPlace            String   
+  birthDate             DateTime 
+  fullAddress           String   @db.Text
+  country               String   @default("Indonesia")
+  
+  bloodType             BloodType
+  medicalHistory        String?  @db.Text 
+  emergencyContactName  String
+  emergencyContactPhone String   
+  
+  jerseyId              String?  
+  selectedSize          String?  
+  communityName         String?  
+  bibNumber             String?  @unique 
+  
+  createdAt             DateTime @default(now())
+
+  order                 Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  event                 Event    @relation(fields: [eventId], references: [id])
+  jersey                Jersey?  @relation(fields: [jerseyId], references: [id]) 
+
+  @@map("participants")
+}
+
+// -------------------------------------------------------------
+// 7. SYSTEM & AUDIT LOGS
+// -------------------------------------------------------------
+model Log {
+  id          String   @id @default(uuid())
+  action      String   
+  description String   @db.Text 
+  
+  userId      String?  
+  entityType  String?  
+  entityId    String?  
+  
+  metadata    Json?    
+  
+  createdAt   DateTime @default(now())
+
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("logs")
+}
+
+// -------------------------------------------------------------
+// 8. BIB CONFIGURATIONS (Tabel Baru)
+// -------------------------------------------------------------
+model BibConfiguration {
+  id            String   @id @default(uuid())
+  eventId       String   @unique // 1 Event (Kategori) hanya punya 1 Pengaturan BIB
+  
+  prefix        String   // Contoh: "5K-", "VIP-", atau "RUN"
+  digitLength   Int      // Contoh: 3 (menghasilkan angka 001)
+  startNumber   Int      @default(1) // Nomor mulai, misal 1 atau 100
+  suffix        String?  // (Opsional) Contoh: "-2027"
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@map("bib_configurations")
+}
+
+// --- ENUMS ---
+enum OrderStatus {
+  PENDING
+  SETTLEMENT
+  CAPTURE
+  CANCEL
+  EXPIRE
+  DENY
+  REFUND
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum BloodType {
+  A
+  B
+  AB
+  O
+}
