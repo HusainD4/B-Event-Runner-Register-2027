@@ -2,20 +2,29 @@ import type { CorsOptions } from 'cors';
 
 // Daftar domain yang diizinkan untuk menembak API ini
 const allowedOrigins = [
-  'http://localhost:3000',     // Frontend Vue/Next.js di komputer lokal Anda
-  'http://localhost:5173',     // Port default Vite (jika Anda pakai Vite)
-  'https://haisen.my.id',      // Website utama Anda
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'https://haisen.my.id',
   'https://www.haisen.my.id',
-  'https://tegalrun2027.com',  // (Contoh) Ganti dengan domain resmi event nanti
-  // Tambahkan domain frontend Vercel/Cloudflare Anda di sini nantinya
+  'https://tegalrun2027.com',
+  'https://pendaftaran-running.haisen.my.id'
 ];
 
 export const corsConfig: CorsOptions = {
   // Logika pengecekan asal request (origin)
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // Izinkan request tanpa origin (seperti Postman, Insomnia, atau server-to-server) 
-    // ATAU jika origin-nya ada di dalam daftar allowedOrigins
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Izinkan request tanpa origin (seperti Postman, server-to-server)
+    // atau jika origin ada di daftar / berasal dari localhost / local IP
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      /^http:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin)
+    ) {
       callback(null, true);
     } else {
       callback(new Error(`CORS Error: Akses dari domain ${origin} diblokir oleh server.`));

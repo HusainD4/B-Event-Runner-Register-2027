@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/client/index.js';
+export * from '../generated/client/index.js';
 
 // Mendeklarasikan variabel global untuk mencegah Prisma membuat koneksi berulang 
 // saat proses hot-reloading di mode development (ts-node-dev / nodemon).
@@ -7,10 +8,10 @@ declare global {
 }
 
 // Opsi logging: Tampilkan query SQL di console hanya jika sedang dalam mode development
-const prismaOptions = {
+const prismaOptions: any = {
   log: process.env.NODE_ENV === 'development' 
-    ? ['query', 'error', 'warn'] as const 
-    : ['error'] as const,
+    ? ['query', 'error', 'warn'] 
+    : ['error'],
 };
 
 // Gunakan instance global jika sudah ada, jika belum maka buat instance baru

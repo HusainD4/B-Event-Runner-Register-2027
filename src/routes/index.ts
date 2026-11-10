@@ -6,6 +6,15 @@ import registerRoutes from './register.routes';
 import webhookRoutes from './webhook.routes';
 import eventRoutes from './event.routes';
 import adminRoutes from './admin.routes';
+import { getPublicCountdownSettings, getWebsiteSettings, getPublicCheckoutConfig } from '../controllers/settings.controller';
+import { getRouteOverview, getRoutePoints } from '../controllers/route.controller';
+import {
+  searchTickets,
+  getETicketData,
+  cancelOrder,
+  syncMidtransStatus,
+  getOrderSnapToken,
+} from '../controllers/ticket.controller';
 
 const router = Router();
 
@@ -23,8 +32,26 @@ router.use('/register', registerRoutes);
 // Webhook Pembayaran Midtrans
 router.use('/webhook', webhookRoutes);
 
-// Informasi Event
+// Informasi Event & CMS Website Settings
 router.use('/events', eventRoutes);
+
+// Pengaturan Global Countdown & Status Event
+router.get('/settings/countdown', getPublicCountdownSettings);
+router.get('/settings/checkout-config', getPublicCheckoutConfig);
+
+// Pengaturan Konten & CMS Website Publik
+router.get('/settings/website', getWebsiteSettings);
+
+// Rute Lari Resmi & Titik Kumpul (Public)
+router.get('/routes', getRouteOverview);
+router.get('/routes/points', getRoutePoints);
+
+// Layanan Cek Tiket & E-Tiket Publik
+router.get('/tickets/search', searchTickets);
+router.get('/tickets/e-ticket/:orderId', getETicketData);
+router.post('/orders/:orderId/cancel', cancelOrder);
+router.post('/orders/:orderId/sync-midtrans', syncMidtransStatus);
+router.all('/orders/:orderId/snap-token', getOrderSnapToken);
 
 // Manajemen Admin
 router.use('/admin', adminRoutes);

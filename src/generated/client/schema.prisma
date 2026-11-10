@@ -1,0 +1,282 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// 1. USERS
+// -------------------------------------------------------------
+model User {
+  id          String   @id @default(uuid())
+  fullName    String
+  email       String   @unique
+  phoneNumber String
+  createdAt   DateTime @default(now())
+
+  orders Order[]
+  logs   Log[] // Relasi ke aktivitas yang dilakukan user ini
+
+  @@map("users")
+}
+
+// -------------------------------------------------------------
+// 2. EVENTS
+// -------------------------------------------------------------
+model Event {
+  id         String  @id @default(uuid())
+  ticketName String
+  category   String
+  stock      Int
+  price      Decimal @db.Decimal(10, 2)
+
+  ticketImage String?
+  medalImage  String?
+
+  // Fitur Tanggal Event (untuk Countdown Timer) & Status Buka/Tutup Pendaftaran
+  eventDate DateTime?
+  isClosed  Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants Participant[]
+  benefits     EventBenefit[]
+  jerseys      Jersey[]
+  bibConfig    BibConfiguration? // Relasi 1-to-1 ke pengaturan format BIB
+
+  @@map("events")
+}
+
+// -------------------------------------------------------------
+// 3. EVENT BENEFITS
+// -------------------------------------------------------------
+model EventBenefit {
+  id      String @id @default(uuid())
+  eventId String
+
+  name        String
+  description String  @db.Text
+  image       String?
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("event_benefits")
+}
+
+// -------------------------------------------------------------
+// 4. JERSEYS
+// -------------------------------------------------------------
+model Jersey {
+  id      String @id @default(uuid())
+  eventId String
+
+  name String
+  type String
+
+  sizes Json
+  image String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participants Participant[]
+
+  @@map("jerseys")
+}
+
+// -------------------------------------------------------------
+// 5. ORDERS / INVOICE
+// -------------------------------------------------------------
+model Order {
+  id              String      @id @default(uuid())
+  userId          String
+  totalAmount     Decimal     @db.Decimal(10, 2)
+  status          OrderStatus @default(PENDING)
+  midtransOrderId String?     @unique
+  snapToken       String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  participants Participant[]
+
+  @@map("orders")
+}
+
+// -------------------------------------------------------------
+// 6. PARTICIPANTS
+// -------------------------------------------------------------
+model Participant {
+  id      String @id @default(uuid())
+  orderId String
+  eventId String
+
+  fullNameKtp String
+  bibName     String
+  phoneNumber String?
+  nik         String
+  gender      Gender
+  birthPlace  String
+  birthDate   DateTime
+  fullAddress String   @db.Text
+  country     String   @default("Indonesia")
+
+  bloodType             BloodType
+  medicalHistory        String?   @db.Text
+  emergencyContactName  String
+  emergencyContactPhone String
+
+  jerseyId      String?
+  selectedSize  String?
+  communityName String?
+  bibNumber     String? @unique
+
+  createdAt DateTime @default(now())
+
+  order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  event  Event   @relation(fields: [eventId], references: [id])
+  jersey Jersey? @relation(fields: [jerseyId], references: [id])
+
+  @@map("participants")
+}
+
+// -------------------------------------------------------------
+// 7. SYSTEM & AUDIT LOGS
+// -------------------------------------------------------------
+model Log {
+  id          String @id @default(uuid())
+  action      String
+  description String @db.Text
+
+  userId     String?
+  adminId    String? // Relasi jika aksi dicatat oleh akun admin
+  entityType String?
+  entityId   String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  admin Admin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@map("logs")
+}
+
+// -------------------------------------------------------------
+// 8. BIB CONFIGURATIONS (Tabel Baru)
+// -------------------------------------------------------------
+model BibConfiguration {
+  id      String @id @default(uuid())
+  eventId String @unique // 1 Event (Kategori) hanya punya 1 Pengaturan BIB
+
+  prefix      String // Contoh: "5K-", "VIP-", atau "RUN"
+  digitLength Int // Contoh: 3 (menghasilkan angka 001)
+  startNumber Int     @default(1) // Nomor mulai, misal 1 atau 100
+  suffix      String? // (Opsional) Contoh: "-2027"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("bib_configurations")
+}
+
+// -------------------------------------------------------------
+// 9. ADMIN ROLES & PERMISSIONS
+// -------------------------------------------------------------
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique // SUPERADMIN, ADMINISTRATOR, KEUANGAN, dll
+  description String?  @db.Text
+  permissions Json // List hak akses (array of strings, e.g. ["*"] atau ["events:create", "orders:read", ...])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  admins Admin[]
+
+  @@map("roles")
+}
+
+// -------------------------------------------------------------
+// 10. ADMIN USERS
+// -------------------------------------------------------------
+model Admin {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String // Password terenkripsi (PBKDF2/Scrypt hash + salt)
+  fullName  String
+  roleId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  role Role  @relation(fields: [roleId], references: [id])
+  logs Log[]
+
+  @@map("admins")
+}
+
+// --- ENUMS ---
+enum OrderStatus {
+  PENDING
+  SETTLEMENT
+  CAPTURE
+  CANCEL
+  EXPIRE
+  DENY
+  REFUND
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum BloodType {
+  A
+  B
+  AB
+  O
+}
+
+// -------------------------------------------------------------
+// 11. APP SETTINGS (GLOBAL CONFIG: COUNTDOWN DATE, CLOSED STATUS)
+// -------------------------------------------------------------
+model AppSetting {
+  key         String   @id
+  value       String   @db.Text
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+// -------------------------------------------------------------
+// 12. RACE ROUTES & CHECKPOINTS (RUTE LARI & TITIK KUMPUL)
+// -------------------------------------------------------------
+model RoutePoint {
+  id             String  @id @default(uuid())
+  orderIndex     Int     @default(0) // Urutan checkpoint: 1, 2, 3, 4
+  name           String // Contoh: "Start & Finish: Alun-Alun Kota Tegal"
+  distanceKm     String // Contoh: "Km 0.0" atau "Titik Kumpul"
+  category       String  @default("ALL") // "ALL", "10K", "5K"
+  description    String  @db.Text // Penjelasan fasilitas: "Area Race Village, mushola..."
+  icon           String? @default("fa-location-dot") // FontAwesome icon, e.g. "fa-flag-checkered"
+  image          String? // URL foto checkpoint / visual lokasi
+  isWaterStation Boolean @default(false)
+  isMedicalSpot  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("route_points")
+}

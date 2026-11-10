@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/client"
 }
 
 datasource db {
@@ -36,6 +37,10 @@ model Event {
   ticketImage  String?  
   medalImage   String?  
   
+  // Fitur Tanggal Event (untuk Countdown Timer) & Status Buka/Tutup Pendaftaran
+  eventDate    DateTime?
+  isClosed     Boolean  @default(false)
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -92,6 +97,7 @@ model Order {
   totalAmount      Decimal     @db.Decimal(10, 2) 
   status           OrderStatus @default(PENDING)
   midtransOrderId  String?     @unique 
+  snapToken        String?     @db.Text
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   
@@ -110,6 +116,7 @@ model Participant {
   
   fullNameKtp           String   
   bibName               String   
+  phoneNumber           String?  
   nik                   String   
   gender                Gender
   birthPlace            String   
@@ -145,6 +152,7 @@ model Log {
   description String   @db.Text 
   
   userId      String?  
+  adminId     String?  // Relasi jika aksi dicatat oleh akun admin
   entityType  String?  
   entityId    String?  
   
@@ -153,6 +161,7 @@ model Log {
   createdAt   DateTime @default(now())
 
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  admin       Admin?   @relation(fields: [adminId], references: [id], onDelete: SetNull)
 
   @@map("logs")
 }
@@ -176,6 +185,42 @@ model BibConfiguration {
   @@map("bib_configurations")
 }
 
+// -------------------------------------------------------------
+// 9. ADMIN ROLES & PERMISSIONS
+// -------------------------------------------------------------
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique // SUPERADMIN, ADMINISTRATOR, KEUANGAN, dll
+  description String?  @db.Text
+  permissions Json     // List hak akses (array of strings, e.g. ["*"] atau ["events:create", "orders:read", ...])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  admins      Admin[]
+
+  @@map("roles")
+}
+
+// -------------------------------------------------------------
+// 10. ADMIN USERS
+// -------------------------------------------------------------
+model Admin {
+  id          String   @id @default(uuid())
+  username    String   @unique
+  email       String   @unique
+  password    String   // Password terenkripsi (PBKDF2/Scrypt hash + salt)
+  fullName    String
+  roleId      String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  role        Role     @relation(fields: [roleId], references: [id])
+  logs        Log[]
+
+  @@map("admins")
+}
+
 // --- ENUMS ---
 enum OrderStatus {
   PENDING
@@ -197,4 +242,37 @@ enum BloodType {
   B
   AB
   O
+}
+
+// -------------------------------------------------------------
+// 11. APP SETTINGS (GLOBAL CONFIG: COUNTDOWN DATE, CLOSED STATUS)
+// -------------------------------------------------------------
+model AppSetting {
+  key         String   @id
+  value       String   @db.Text
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+// -------------------------------------------------------------
+// 12. RACE ROUTES & CHECKPOINTS (RUTE LARI & TITIK KUMPUL)
+// -------------------------------------------------------------
+model RoutePoint {
+  id             String   @id @default(uuid())
+  orderIndex     Int      @default(0) // Urutan checkpoint: 1, 2, 3, 4
+  name           String   // Contoh: "Start & Finish: Alun-Alun Kota Tegal"
+  distanceKm     String   // Contoh: "Km 0.0" atau "Titik Kumpul"
+  category       String   @default("ALL") // "ALL", "10K", "5K"
+  description    String   @db.Text // Penjelasan fasilitas: "Area Race Village, mushola..."
+  icon           String?  @default("fa-location-dot") // FontAwesome icon, e.g. "fa-flag-checkered"
+  image          String?  // URL foto checkpoint / visual lokasi
+  isWaterStation Boolean  @default(false)
+  isMedicalSpot  Boolean  @default(false)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("route_points")
 }

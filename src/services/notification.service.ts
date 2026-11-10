@@ -1,100 +1,253 @@
 import axios from 'axios';
-import { env } from '../config/env';
+import nodemailer from 'nodemailer';
+import prisma from '../config/database';
+import { whatsappSessionService } from './whatsapp-session.service';
 
-/**
- * Parameter untuk pengiriman pesan WhatsApp (misal menggunakan Fonnte, Wablas, atau Twilio)
- */
-interface SendWhatsAppParams {
-  phone: string;
-  message: string;
+export interface NotificationPayload {
+  orderId: string;
+  type: 'PAID' | 'PENDING' | 'CANCEL';
+  customNote?: string;
+  isManualTrigger?: boolean;
 }
 
 /**
- * Parameter untuk pengiriman Email (menggunakan Nodemailer atau SendGrid API)
+ * Format string template dengan mengganti placeholder {key} dengan data aktual
  */
-interface SendEmailParams {
-  email: string;
-  subject: string;
-  htmlContent: string;
+function compileTemplate(template: string, data: Record<string, any>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(data)) {
+    const regex = new RegExp(`{${key}}`, 'g');
+    result = result.replace(regex, value != null ? String(value) : '');
+  }
+  return result;
 }
 
-export class NotificationService {
-  /**
-   * Mengirimkan pesan WhatsApp ke nomor peserta
-   */
-  public static async sendWhatsAppNotification(params: SendWhatsAppParams): Promise<boolean> {
-    try {
-      const { phone, message } = params;
+/**
+ * Mengirim notifikasi otomatis (WhatsApp & Email) untuk transaksi & tiket
+ */
+export async function sendOrderNotification(payload: NotificationPayload): Promise<{
+  whatsappSent: boolean;
+  emailSent: boolean;
+  isManualPending?: boolean;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  let whatsappSent = false;
+  let emailSent = false;
 
-      // Contoh integrasi dengan API WhatsApp Gateway pihak ketiga (misal: Fonnte / Wablas)
-      // Anda bisa menyesuaikan endpoint dan token dengan layanan WA Gateway yang digunakan.
-      const waApiKey = process.env.WA_GATEWAY_API_KEY;
-      const waEndpoint = process.env.WA_GATEWAY_URL || 'https://api.fonnte.com/send';
-
-      if (!waApiKey || env.NODE_ENV === 'development' && waApiKey === 'dummy_key') {
-        console.log(`📱 [MOCK WHATSAPP to ${phone}]:\n${message}\n-----------------------------------`);
-        return true;
-      }
-
-      await axios.post(
-        waEndpoint,
-        {
-          target: phone,
-          message: message,
+  try {
+    // 1. Ambil data order, user & participants dari database
+    const order = await prisma.order.findUnique({
+      where: { id: payload.orderId },
+      include: {
+        user: true,
+        participants: {
+          include: { event: true },
         },
-        {
-          headers: {
-            Authorization: waApiKey,
+      },
+    });
+
+    if (!order) {
+      errors.push(`Order ID ${payload.orderId} tidak ditemukan.`);
+      return { whatsappSent: false, emailSent: false, errors };
+    }
+
+    // 2. Ambil seluruh konfigurasi notifikasi dari tabel app_settings
+    const settingsList = await prisma.appSetting.findMany({
+      where: {
+        key: {
+          in: [
+            'notif_channel',
+            'wa_dispatch_mode', // 'AUTO' atau 'MANUAL'
+            'wa_gateway_url',
+            'wa_api_token',
+            'wa_sender_number',
+            'email_smtp_host',
+            'email_smtp_port',
+            'email_smtp_user',
+            'email_smtp_pass',
+            'email_from_name',
+            'template_msg_paid',
+            'template_msg_pending',
+            'template_msg_cancel',
+          ],
+        },
+      },
+    });
+
+    const cfg: Record<string, string> = {};
+    settingsList.forEach((s) => {
+      cfg[s.key] = s.value;
+    });
+
+    const dispatchMode = cfg.wa_dispatch_mode || 'AUTO';
+
+    // Cek apakah mode pengiriman adalah MANUAL dan bukan dipicu manual oleh admin
+    if (dispatchMode === 'MANUAL' && !payload.isManualTrigger) {
+      await prisma.log.create({
+        data: {
+          action: 'NOTIFICATION_PENDING_MANUAL',
+          description: `Notifikasi ${payload.type} untuk ${order.user?.fullName || 'Peserta'} disimpan ke antrean pengiriman manual (Mode Manual Aktif).`,
+          entityType: 'Order',
+          entityId: order.id,
+          metadata: {
+            orderId: order.id,
+            midtransOrderId: order.midtransOrderId,
+            type: payload.type,
+            customerName: order.user?.fullName,
+            customerPhone: order.user?.phoneNumber,
+            customerEmail: order.user?.email,
+            status: 'PENDING_MANUAL',
+            totalAmount: Number(order.totalAmount),
+            createdAt: new Date().toISOString(),
           },
-          timeout: 10000,
-        }
-      );
+        },
+      });
 
-      console.log(`✅ [WHATSAPP SENT] Pesan berhasil dikirim ke ${phone}`);
-      return true;
-    } catch (error: any) {
-      console.error(`🚨 [NOTIFICATION ERROR] Gagal mengirim WhatsApp ke ${params.phone}:`, error.message);
-      return false;
+      return {
+        whatsappSent: false,
+        emailSent: false,
+        isManualPending: true,
+        errors: [],
+      };
     }
-  }
 
-  /**
-   * Mengirimkan email konfirmasi / tiket ke peserta
-   */
-  public static async sendEmailNotification(params: SendEmailParams): Promise<boolean> {
-    try {
-      const { email, subject, htmlContent } = params;
+    const channel = cfg.notif_channel || 'WA'; // 'WA', 'EMAIL', 'BOTH', 'DISABLED'
+    if (channel === 'DISABLED') {
+      return { whatsappSent: false, emailSent: false, errors: ['Notifikasi dinonaktifkan di pengaturan admin.'] };
+    }
 
-      // Jika di mode development dan belum dikonfigurasi, cukup cetak ke console
-      if (!process.env.SMTP_HOST && env.NODE_ENV === 'development') {
-        console.log(`📧 [MOCK EMAIL to ${email}] Subject: ${subject}\nContent length: ${htmlContent.length} chars\n-----------------------------------`);
-        return true;
+    const firstP = order.participants[0];
+    const ticketName = firstP?.event?.ticketName || 'Tegal Run 2027';
+    const bibNumbers = order.participants.map((p) => p.bibNumber).filter(Boolean).join(', ') || 'Sedang Diproses';
+    const recipientPhone = order.user?.phoneNumber || firstP?.emergencyContactPhone;
+    const recipientEmail = order.user?.email;
+    const recipientName = order.user?.fullName || firstP?.fullNameKtp || 'Pelari';
+
+    const baseUrl = process.env.APP_URL || 'http://localhost:5173';
+    const eTicketUrl = `${baseUrl}/e-ticket.html?orderId=${order.id}`;
+    const paymentUrl = `${baseUrl}/payment.html?orderId=${order.id}`;
+    const pdfUrl = `${baseUrl}/e-ticket.html?orderId=${order.id}&print=pdf`;
+
+    const templateData: Record<string, any> = {
+      fullName: recipientName,
+      ticketName,
+      bibNumber: bibNumbers,
+      orderId: order.midtransOrderId || order.id,
+      totalAmount: `Rp ${Number(order.totalAmount).toLocaleString('id-ID')}`,
+      status: order.status,
+      eTicketUrl,
+      paymentUrl,
+      pdfUrl,
+      participantCount: order.participants.length,
+      note: payload.customNote || '',
+    };
+
+    // Default template pesan otomatis lengkap dengan status pembayaran, link file E-Tiket PDF, dan ucapan terima kasih
+    const defaultTemplates = {
+      PAID: `Halo {fullName}! 🏃‍♂️🎉\n\nTerima kasih banyak telah menyelesaikan pembayaran pendaftaran Tegal Run 2027. Pembayaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah BERHASIL diverifikasi dan LUNAS!\n\n📋 Detail Registrasi:\n• Kategori: {ticketName}\n• Nomor BIB Dada: {bibNumber}\n• Status Pembayaran: LUNAS (SETTLEMENT)\n\n📄 File E-Tiket Resmi (PDF):\nSilakan unduh dan simpan berkas E-Tiket resmi Anda melalui tautan berikut:\n👉 {eTicketUrl}\n\n🙏 Ucapan Terima Kasih:\nPanitia Tegal Run 2027 mengucapkan selamat bergabung kepada {fullName}! Persiapkan fisik dan stamina terbaik Anda. Sampai jumpa di garis start Alun-Alun Kota Tegal!\n\nSalam Hangat,\nPanitia Pelaksana Tegal Run 2027`,
+      PENDING: `Halo {fullName}! 👋\n\nPendaftaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah kami terima dan saat ini sedang MENUNGGU PEMBAYARAN.\n\nSegera selesaikan transaksi Anda sebelum batas waktu habis melalui tautan pembayaran resmi berikut:\n👉 {paymentUrl}\n\nSetelah pembayaran terverifikasi, sistem akan otomatis mengirimkan E-Tiket resmi dalam format digital PDF beserta nomor BIB Anda.\n\nTerima kasih,\nPanitia Tegal Run 2027`,
+      CANCEL: `Halo {fullName},\n\nPesanan tiket {ticketName} (Order ID: {orderId}) telah DIBATALKAN. Kuota tiket telah dilepaskan kembali ke sistem.\n\nJika ingin mendaftar kembali, silakan kunjungi website resmi Tegal Run 2027.`,
+    };
+
+    let messageBody = '';
+    if (payload.type === 'PAID') {
+      messageBody = compileTemplate(cfg.template_msg_paid || defaultTemplates.PAID, templateData);
+    } else if (payload.type === 'PENDING') {
+      messageBody = compileTemplate(cfg.template_msg_pending || defaultTemplates.PENDING, templateData);
+    } else {
+      messageBody = compileTemplate(cfg.template_msg_cancel || defaultTemplates.CANCEL, templateData);
+    }
+
+    // 3. Eksekusi Pengiriman WhatsApp Langsung dari Backend (Tanpa Pihak Ketiga)
+    if ((channel === 'WA' || channel === 'BOTH') && recipientPhone) {
+      try {
+        await whatsappSessionService.sendMessage(recipientPhone, messageBody);
+        whatsappSent = true;
+      } catch (waErr: any) {
+        console.warn('⚠️ [WA DIRECT SEND ERROR]:', waErr.message);
+        errors.push(`WhatsApp Backend: ${waErr.message}`);
       }
-
-      // Di sini Anda bisa mengintegrasikan Nodemailer atau Resend/SendGrid API
-      // Contoh placeholder menggunakan logika eksternal
-      console.log(`✅ [EMAIL SENT] Email berhasil dikirim ke ${email} dengan subjek: "${subject}"`);
-      return true;
-    } catch (error: any) {
-      console.error(`🚨 [NOTIFICATION ERROR] Gagal mengirim Email ke ${params.email}:`, error.message);
-      return false;
     }
-  }
 
-  /**
-   * Helper template khusus untuk Notifikasi Sukses Pendaftaran / Pembayaran Tegal Run 2027
-   */
-  public static async sendRegistrationSuccessNotice(userPhone: string, userEmail: string, userName: string, orderId: string, paymentUrl: string) {
-    const waMessage = `Halo *${userName}* 👋,\n\nPendaftaran Anda untuk *Tegal Run 2027* telah berhasil diamankan!\n\nOrder ID: *${orderId}*\n\nSilakan selesaikan pembayaran melalui tautan berikut:\n${paymentUrl}\n\nTerima kasih telah berpartisipasi! 🏃‍♂️💨`;
-    
-    // Kirim secara paralel via WhatsApp dan Email
-    await Promise.all([
-      this.sendWhatsAppNotification({ phone: userPhone, message: waMessage }),
-      this.sendEmailNotification({
-        email: userEmail,
-        subject: 'Konfirmasi Pendaftaran Tegal Run 2027 - Selesaikan Pembayaran',
-        htmlContent: `<p>Halo <b>${userName}</b>,</p><p>Pendaftaran Tegal Run 2027 Anda berhasil dicatat. Silakan lakukan pembayaran <a href="${paymentUrl}">di sini</a>.</p>`
-      })
-    ]);
+    // 4. Eksekusi Pengiriman Email jika channel EMAIL atau BOTH
+    if ((channel === 'EMAIL' || channel === 'BOTH') && recipientEmail && cfg.email_smtp_host) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: cfg.email_smtp_host,
+          port: parseInt(cfg.email_smtp_port || '587', 10),
+          secure: parseInt(cfg.email_smtp_port || '587', 10) === 465,
+          auth: {
+            user: cfg.email_smtp_user,
+            pass: cfg.email_smtp_pass,
+          },
+        });
+
+        const fromName = cfg.email_from_name || 'Tegal Run 2027';
+        const subject =
+          payload.type === 'PAID'
+            ? `✅ E-Tiket Resmi Lunas & Berkas PDF: ${ticketName} - ${recipientName}`
+            : payload.type === 'PENDING'
+            ? `⏳ Menunggu Pembayaran: ${ticketName} - ${recipientName}`
+            : `❌ Pesanan Dibatalkan: ${ticketName} - ${recipientName}`;
+
+        const htmlBody = `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1E293B; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E2E8F0; border-radius: 8px;">
+            <div style="background: #FF6B00; color: #FFF; padding: 16px; border-radius: 6px; text-align: center; margin-bottom: 20px;">
+              <h2 style="margin: 0; font-size: 1.4rem;">TEGAL RUN 2027</h2>
+              <p style="margin: 4px 0 0; font-size: 0.9rem; opacity: 0.9;">Notifikasi Resmi Tiket & Pembayaran</p>
+            </div>
+            <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.95rem;">${messageBody}</pre>
+            <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #E2E8F0; font-size: 0.8rem; color: #64748B; text-align: center;">
+              Pesan ini dikirim secara otomatis oleh Sistem Portal Resmi Tegal Run 2027.
+            </div>
+          </div>
+        `;
+
+        await transporter.sendMail({
+          from: `"${fromName}" <${cfg.email_smtp_user}>`,
+          to: recipientEmail,
+          subject,
+          text: messageBody,
+          html: htmlBody,
+        });
+        emailSent = true;
+      } catch (emailErr: any) {
+        console.warn('⚠️ [EMAIL NOTIF ERROR]:', emailErr.message);
+        errors.push(`Email: ${emailErr.message}`);
+      }
+    }
+
+    // 5. Catat Log Pengiriman Notifikasi ke Tabel Log
+    await prisma.log.create({
+      data: {
+        action: 'NOTIFICATION_DISPATCH',
+        description: `Notifikasi ${payload.type} dikirim ke ${recipientName} (${recipientPhone || '-'} / ${recipientEmail || '-'}). WA: ${whatsappSent ? 'SUKSES' : 'GAGAL/SKIP'}, Email: ${emailSent ? 'SUKSES' : 'GAGAL/SKIP'}. Mode: ${payload.isManualTrigger ? 'MANUAL (ADMIN)' : 'OTOMATIS'}`,
+        entityType: 'Order',
+        entityId: order.id,
+        metadata: {
+          channel,
+          type: payload.type,
+          recipientPhone,
+          recipientEmail,
+          recipientName,
+          orderId: order.id,
+          midtransOrderId: order.midtransOrderId,
+          ticketName,
+          totalAmount: Number(order.totalAmount),
+          whatsappSent,
+          emailSent,
+          isManual: !!payload.isManualTrigger,
+          errors,
+          sentAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    return { whatsappSent, emailSent, isManualPending: false, errors };
+  } catch (err: any) {
+    console.error('🚨 [NOTIFICATION SERVICE FATAL ERROR]:', err);
+    errors.push(err.message);
+    return { whatsappSent: false, emailSent: false, errors };
   }
 }

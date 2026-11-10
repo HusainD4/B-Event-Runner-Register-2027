@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import prisma from '../config/database';
-import { getIo } from '../sockets';
 import { emitStockUpdate } from '../sockets';
+import { sendOrderNotification } from '../services/notification.service';
 
 /**
  * Controller untuk menangani notifikasi webhook dari server Midtrans secara otomatis.
@@ -20,21 +20,21 @@ export const handleMidtransWebhook = async (req: Request, res: Response): Promis
       where: { midtransOrderId: order_id },
       include: {
         participants: {
-          include: { event: true }
-        }
-      }
+          include: { event: true },
+        },
+      },
     });
 
     if (!order) {
       return res.status(404).json({ status: 'error', message: `Order dengan ID ${order_id} tidak ditemukan di database.` });
     }
 
-    let newStatus = order.status;
+    let newStatus: any = order.status;
 
     // Tentukan status berdasarkan respons Midtrans
     if (transaction_status === 'capture') {
       if (fraud_status === 'challenge') {
-        newStatus = 'CHALLENGE';
+        newStatus = 'PENDING';
       } else if (fraud_status === 'accept') {
         newStatus = 'SETTLEMENT';
       }
@@ -42,21 +42,27 @@ export const handleMidtransWebhook = async (req: Request, res: Response): Promis
       newStatus = 'SETTLEMENT';
     } else if (transaction_status === 'pending') {
       newStatus = 'PENDING';
-    } else if (['deny', 'expire', 'cancel'].includes(transaction_status)) {
-      newStatus = 'CANCELLED';
+    } else if (transaction_status === 'deny') {
+      newStatus = 'DENY';
+    } else if (transaction_status === 'expire') {
+      newStatus = 'EXPIRE';
+    } else if (transaction_status === 'cancel') {
+      newStatus = 'CANCEL';
+    } else if (transaction_status === 'refund') {
+      newStatus = 'REFUND';
     }
 
     // Gunakan transaksi database untuk memperbarui status order & mengembalikan kuota jika dibatalkan/kadaluarsa
     await prisma.$transaction(async (tx) => {
-      // Jika status berubah dari PENDING menjadi CANCELLED, kembalikan kuota tiket
-      if (order.status === 'PENDING' && newStatus === 'CANCELLED') {
+      // Jika status berubah dari PENDING menjadi pembatalan/kadaluarsa, kembalikan kuota tiket
+      if (order.status === 'PENDING' && ['CANCEL', 'EXPIRE', 'DENY'].includes(newStatus)) {
         const eventId = order.participants[0]?.eventId;
         if (eventId) {
           const count = order.participants.length;
           // Kembalikan stok tiket
           await tx.event.update({
             where: { id: eventId },
-            data: { stock: { increment: count } }
+            data: { stock: { increment: count } },
           });
 
           // Ambil sisa stok terbaru untuk disiarkan via WebSocket
@@ -70,7 +76,7 @@ export const handleMidtransWebhook = async (req: Request, res: Response): Promis
       // Update status order
       await tx.order.update({
         where: { id: order.id },
-        data: { status: newStatus }
+        data: { status: newStatus },
       });
 
       // Catat log aktivitas webhook
@@ -80,13 +86,23 @@ export const handleMidtransWebhook = async (req: Request, res: Response): Promis
           description: `Midtrans webhook untuk order ${order_id} mengubah status menjadi ${newStatus}`,
           entityType: 'Order',
           entityId: order.id,
-          metadata: { transaction_status, fraud_status, gross_amount }
-        }
+          metadata: { transaction_status, fraud_status, gross_amount },
+        },
       });
     });
 
-    return res.status(200).json({ status: 'success', message: 'Webhook berhasil diproses.' });
+    // Kirim notifikasi WhatsApp/Email secara asinkron
+    if (newStatus === 'SETTLEMENT') {
+      sendOrderNotification({ orderId: order.id, type: 'PAID' }).catch((err) =>
+        console.warn('⚠️ Webhook notification dispatch failed:', err.message)
+      );
+    } else if (['CANCEL', 'EXPIRE', 'DENY'].includes(newStatus)) {
+      sendOrderNotification({ orderId: order.id, type: 'CANCEL' }).catch((err) =>
+        console.warn('⚠️ Webhook cancel notification dispatch failed:', err.message)
+      );
+    }
 
+    return res.status(200).json({ status: 'success', message: 'Webhook berhasil diproses.' });
   } catch (error: any) {
     console.error('🚨 [WEBHOOK ERROR] Gagal memproses webhook Midtrans:', error);
     return res.status(500).json({ status: 'error', message: 'Terjadi kesalahan internal pada server webhook.' });

@@ -8,6 +8,12 @@ export const getAllEvents = async (req: Request, res: Response): Promise<any> =>
   try {
     const events = await prisma.event.findMany({
       orderBy: { createdAt: 'desc' },
+      include: {
+        benefits: true,
+        jerseys: true,
+        bibConfig: true,
+        _count: { select: { participants: true } }
+      }
     });
 
     return res.status(200).json({
@@ -15,7 +21,9 @@ export const getAllEvents = async (req: Request, res: Response): Promise<any> =>
       message: 'Berhasil mengambil daftar event.',
       data: events.map(event => ({
         ...event,
-        price: Number(event.price), // Ubah Decimal Prisma ke Number agar mudah dibaca frontend
+        price: Number(event.price),
+        registeredCount: event._count?.participants || 0,
+        remainingStock: Math.max(0, event.stock - (event._count?.participants || 0)),
       })),
     });
   } catch (error: any) {
@@ -32,16 +40,15 @@ export const getAllEvents = async (req: Request, res: Response): Promise<any> =>
  */
 export const getEventById = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const event = await prisma.event.findUnique({
       where: { id },
       include: {
-        participants: {
-          select: { id: true, fullNameKtp: true, createdAt: true },
-          take: 10, // Ambil 10 pendaftar terakhir
-          orderBy: { createdAt: 'desc' },
-        },
+        benefits: true,
+        jerseys: true,
+        bibConfig: true,
+        _count: { select: { participants: true } },
       },
     });
 
@@ -58,6 +65,8 @@ export const getEventById = async (req: Request, res: Response): Promise<any> =>
       data: {
         ...event,
         price: Number(event.price),
+        registeredCount: event._count?.participants || 0,
+        remainingStock: Math.max(0, event.stock - (event._count?.participants || 0)),
       },
     });
   } catch (error: any) {

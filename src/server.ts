@@ -5,6 +5,7 @@ import prisma from './config/database';
 import { redis } from './config/redis';
 import { initSocketServer } from './sockets';
 import { logger } from './utils/logger';
+import { ensureDefaultRolesInDatabase } from './controllers/admin.rbac.controller';
 
 // 1. Buat HTTP Server menggunakan instance Express (app)
 const httpServer = http.createServer(app);
@@ -20,17 +21,39 @@ const PORT = env.PORT || 3000;
 const startServer = async () => {
   try {
     // A. Tes koneksi Database Prisma (MySQL)
-    await prisma.$connect();
-    logger.info('✅ [DATABASE] Koneksi ke database MySQL berhasil terhubung.');
+    try {
+      await prisma.$connect();
+      logger.info('✅ [DATABASE] Koneksi ke database MySQL berhasil terhubung.');
+      await ensureDefaultRolesInDatabase();
+    } catch (dbError: any) {
+      logger.warn('⚠️ [DATABASE WARNING] Belum terhubung ke MySQL di localhost:3306. Pastikan MySQL di XAMPP sudah aktif.');
+    }
 
     // B. Tes koneksi Redis
-    if (redis.status === 'wait') {
-      await redis.connect();
+    try {
+      if (redis.status === 'wait') {
+        await redis.connect();
+      }
+      logger.info('✅ [REDIS] Koneksi ke server Redis berhasil terhubung.');
+    } catch (redisError: any) {
+      logger.warn('⚠️ [REDIS WARNING] Server Redis tidak aktif. Cache realtime dilewati.');
     }
-    logger.info('✅ [REDIS] Koneksi ke server Redis berhasil terhubung.');
+
+    // Tangkap error jika Port sudah digunakan (EADDRINUSE)
+    httpServer.on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`\n🚨 [PORT CONFLICT] Port ${PORT} sedang dipakai oleh proses lain!`);
+        console.error(`💡 Cara membebaskan Port ${PORT} di terminal PowerShell:`);
+        console.error(`   Stop-Process -Id (Get-NetTCPConnection -LocalPort ${PORT}).OwningProcess -Force\n`);
+        process.exit(1);
+      } else {
+        logger.error('🚨 [SERVER HTTP ERROR]:', error);
+        process.exit(1);
+      }
+    });
 
     // C. Jalankan HTTP & WebSocket Server
-    httpServer.listen(Number(PORT), () => {
+    httpServer.listen(Number(PORT), '0.0.0.0', () => {
       console.log(`==================================================`);
       console.log(`🚀 Server Tegal Run 2027 menyala di Port ${PORT}`);
       console.log(`🔗 Akses API: http://localhost:${PORT}/api`);

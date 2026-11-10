@@ -16,6 +16,7 @@ const envSchema = z.object({
   // Kunci API Midtrans
   MIDTRANS_SERVER_KEY: z.string().min(1, "MIDTRANS_SERVER_KEY wajib diisi di file .env"),
   MIDTRANS_CLIENT_KEY: z.string().min(1, "MIDTRANS_CLIENT_KEY wajib diisi di file .env"),
+  MIDTRANS_IS_PRODUCTION: z.union([z.string(), z.boolean()]).default('false'),
 
   // Keamanan JWT (Untuk Auth Admin)
   JWT_SECRET: z.string().min(10, "JWT_SECRET minimal harus 10 karakter demi keamanan").default("SUPER_SECRET_KEY_TEGAL_RUN_2027"),

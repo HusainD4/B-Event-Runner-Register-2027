@@ -2,12 +2,14 @@ import Redis from 'ioredis';
 import { env } from './env';
 
 // Inisialisasi Redis client dengan penanganan error yang aman
-export const redis = new Redis({
-  host: env.REDIS_HOST || 'localhost',
-  port: Number(env.REDIS_PORT) || 6379,
-  password: env.REDIS_PASSWORD || undefined,
+const RedisClient = (Redis as any).default || Redis;
+
+export const redis = new RedisClient({
+  host: (env as any).REDIS_HOST || 'localhost',
+  port: Number((env as any).REDIS_PORT) || 6379,
+  password: (env as any).REDIS_PASSWORD || undefined,
   maxRetriesPerRequest: null,
-  retryStrategy(times) {
+  retryStrategy(times: number) {
     // Batasi percobaan ulang atau matikan reconnect otomatis jika Redis lokal mati
     if (times > 3) {
       console.warn('⚠️ [REDIS] Melewati koneksi Redis karena server tidak aktif.');
@@ -21,7 +23,7 @@ redis.on('connect', () => {
   console.log('✅ [REDIS] Berhasil terhubung ke server Redis.');
 });
 
-redis.on('error', (err) => {
+redis.on('error', (err: any) => {
   // Cegah aplikasi crash total saat koneksi gagal
   console.warn('⚠️ [REDIS WARNING] Gagal terhubung ke Redis:', err.message);
 });

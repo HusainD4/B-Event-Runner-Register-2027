@@ -3,8 +3,13 @@ import type { Request, Response, NextFunction } from 'express';
 
 // 1. Skema Validasi untuk 1 Data Peserta
 const participantSchema = z.object({
+  eventId: z.string().uuid("Event ID tidak valid").optional(),
   fullNameKtp: z.string().min(3, "Nama KTP minimal 3 karakter"),
   bibName: z.string().max(15, "Nama BIB maksimal 15 karakter agar muat dicetak"),
+  phoneNumber: z.string().regex(
+    /^(?:\+62|62|0)8\d{7,12}$/,
+    "Nomor WhatsApp peserta wajib diisi (contoh: 08123456789 atau +628123456789)"
+  ),
   
   // NIK Wajib 16 digit angka
   nik: z.string().regex(/^\d{16}$/, "NIK harus berupa 16 digit angka"),
@@ -26,8 +31,8 @@ const participantSchema = z.object({
   
   emergencyContactName: z.string().min(3, "Nama kontak darurat wajib diisi"),
   emergencyContactPhone: z.string().regex(
-    /^\+628\d{8,12}$/, 
-    "Nomor telepon darurat harus diawali +628 (contoh: +628123456789)"
+    /^(?:\+62|62|0)8\d{7,12}$/, 
+    "Nomor telepon darurat harus diawali 08 atau +628 (contoh: +628123456789)"
   ),
   
   // Opsional karena mungkin ada kategori tiket tanpa Jersey
@@ -39,8 +44,11 @@ const participantSchema = z.object({
 // 2. Skema Validasi Utama untuk Body Request
 export const registerPayloadSchema = z.object({
   body: z.object({
-    userId: z.string().uuid("User ID (Pemesan) tidak valid"),
+    userId: z.string().uuid("User ID (Pemesan) tidak valid").optional(),
     eventId: z.string().uuid("Event ID tidak valid"),
+    bookerName: z.string().optional(),
+    bookerEmail: z.string().email("Format email pemesan tidak valid").optional(),
+    bookerPhone: z.string().optional(),
     participants: z.array(participantSchema)
       .min(1, "Minimal harus mendaftarkan 1 peserta")
       .max(10, "Maksimal 10 peserta dalam 1 kali transaksi"),

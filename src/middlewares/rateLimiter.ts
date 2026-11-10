@@ -32,3 +32,20 @@ export const warTicketLimiter = rateLimit({
     });
   },
 });
+
+/**
+ * Rate limiter untuk login admin guna mencegah serangan brute-force
+ * (Maksimal 5 percobaan per 15 menit per IP)
+ */
+export const adminAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 menit
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req: Request, res: Response) => {
+    return res.status(429).json({
+      status: 'error',
+      message: '🚨 Terlalu banyak percobaan login admin yang gagal. Silakan coba kembali setelah 15 menit.',
+    });
+  },
+});

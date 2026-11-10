@@ -69,7 +69,7 @@ export class TicketService {
       initialStock: event.stock + event._count.participants, // Perkiraan stok awal
       currentStock: event.stock,
       soldCount: event._count.participants,
-      settledOrdersCount,
+      settledOrdersCount: settlementOrdersCount,
     };
   }
 }

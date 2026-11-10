@@ -1,0 +1,473 @@
+import type { Response } from 'express';
+import type { AuthenticatedRequest } from '../middlewares/auth';
+import prisma from '../config/database';
+import axios from 'axios';
+import { whatsappSessionService } from '../services/whatsapp-session.service';
+import { sendOrderNotification } from '../services/notification.service';
+
+/**
+ * 1. MENGAMBIL SELURUH PENGATURAN NOTIFIKASI & OTOMASI WHATSAPP / EMAIL
+ */
+export const getNotificationSettings = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const keys = [
+      'notif_channel',
+      'wa_dispatch_mode', // 'AUTO' | 'MANUAL'
+      'wa_gateway_url',
+      'wa_api_token',
+      'wa_sender_number',
+      'email_smtp_host',
+      'email_smtp_port',
+      'email_smtp_user',
+      'email_smtp_pass',
+      'email_from_name',
+      'template_msg_paid',
+      'template_msg_pending',
+      'template_msg_cancel',
+    ];
+
+    const settings = await prisma.appSetting.findMany({
+      where: { key: { in: keys } },
+    });
+
+    const config: Record<string, string> = {
+      notif_channel: 'WA',
+      wa_dispatch_mode: 'AUTO',
+      wa_gateway_url: '',
+      wa_api_token: '',
+      wa_sender_number: '',
+      email_smtp_host: 'smtp.gmail.com',
+      email_smtp_port: '587',
+      email_smtp_user: '',
+      email_smtp_pass: '',
+      email_from_name: 'Panitia Resmi Tegal Run 2027',
+      template_msg_paid: `Halo {fullName}! 🏃‍♂️🎉\n\nTerima kasih banyak telah menyelesaikan pembayaran pendaftaran Tegal Run 2027. Pembayaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah BERHASIL diverifikasi dan LUNAS!\n\n📋 Detail Registrasi:\n• Kategori: {ticketName}\n• Nomor BIB Dada: {bibNumber}\n• Status Pembayaran: LUNAS (SETTLEMENT)\n\n📄 File E-Tiket Resmi (PDF):\nSilakan unduh dan simpan berkas E-Tiket resmi Anda melalui tautan berikut:\n👉 {eTicketUrl}\n\n🙏 Ucapan Terima Kasih:\nPanitia Tegal Run 2027 mengucapkan selamat bergabung kepada {fullName}! Persiapkan fisik dan stamina terbaik Anda. Sampai jumpa di garis start Alun-Alun Kota Tegal!\n\nSalam Hangat,\nPanitia Pelaksana Tegal Run 2027`,
+      template_msg_pending: `Halo {fullName}! 👋\n\nPendaftaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah kami terima dan saat ini sedang MENUNGGU PEMBAYARAN.\n\nSegera selesaikan transaksi Anda sebelum batas waktu habis melalui tautan pembayaran resmi berikut:\n👉 {paymentUrl}\n\nSetelah pembayaran terverifikasi, sistem akan otomatis mengirimkan E-Tiket resmi dalam format digital PDF beserta nomor BIB Anda.\n\nTerima kasih,\nPanitia Tegal Run 2027`,
+      template_msg_cancel: `Halo {fullName},\n\nPesanan tiket {ticketName} (Order ID: {orderId}) telah DIBATALKAN. Kuota tiket telah dikembalikan ke sistem.`,
+    };
+
+    settings.forEach((s) => {
+      config[s.key] = s.value;
+    });
+
+    // Ambil juga status sesi WhatsApp Web
+    const waSession = await whatsappSessionService.getSession();
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        ...config,
+        wa_session: waSession,
+      },
+    });
+  } catch (error: any) {
+    console.error('🚨 [GET NOTIF SETTINGS ERROR]:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil pengaturan notifikasi dari database.',
+    });
+  }
+};
+
+/**
+ * 2. MENYIMPAN PENGATURAN NOTIFIKASI & OTOMASI WHATSAPP / EMAIL
+ */
+export const updateNotificationSettings = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const payload = req.body?.settings || req.body || {};
+
+    const allowedKeys = [
+      'notif_channel',
+      'wa_dispatch_mode',
+      'wa_gateway_url',
+      'wa_api_token',
+      'wa_sender_number',
+      'email_smtp_host',
+      'email_smtp_port',
+      'email_smtp_user',
+      'email_smtp_pass',
+      'email_from_name',
+      'template_msg_paid',
+      'template_msg_pending',
+      'template_msg_cancel',
+    ];
+
+    for (const key of allowedKeys) {
+      if (payload[key] !== undefined) {
+        await prisma.appSetting.upsert({
+          where: { key },
+          update: { value: String(payload[key]) },
+          create: { key, value: String(payload[key]) },
+        });
+      }
+    }
+
+    await prisma.log.create({
+      data: {
+        action: 'NOTIFICATION_SETTINGS_UPDATE',
+        description: `Admin (${req.admin?.username || 'admin'}) memperbarui konfigurasi WhatsApp & Email Gateway serta template pesan otomatis. Mode: ${payload.wa_dispatch_mode || 'AUTO'}`,
+        adminId: req.admin?.adminId,
+      },
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Konfigurasi notifikasi WhatsApp & Email berhasil diperbarui!',
+    });
+  } catch (error: any) {
+    console.error('🚨 [UPDATE NOTIF SETTINGS ERROR]:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Gagal menyimpan pengaturan notifikasi ke database.',
+    });
+  }
+};
+
+/**
+ * 3. WHATSAPP WEB SESSION CONTROLLERS (QR CODE, PAIRING, STATUS, DISCONNECT)
+ */
+export const getWhatsAppSessionStatus = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const session = await whatsappSessionService.getSession();
+    return res.status(200).json({
+      status: 'success',
+      data: session,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+export const generateWhatsAppQr = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const session = await whatsappSessionService.generateQrCode();
+    return res.status(200).json({
+      status: 'success',
+      message: 'QR Code WhatsApp Web resmi berhasil dimuat. Pindai melalui WhatsApp > Perangkat Tertaut (Linked Devices) di ponsel Anda.',
+      data: session,
+    });
+  } catch (error: any) {
+    return res.status(400).json({ status: 'error', message: error.message });
+  }
+};
+
+export const disconnectWhatsAppSession = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const session = await whatsappSessionService.disconnectSession();
+
+    await prisma.log.create({
+      data: {
+        action: 'WHATSAPP_SESSION_DISCONNECTED',
+        description: `Sesi WhatsApp Web diputuskan oleh admin (${req.admin?.username || 'admin'}).`,
+        adminId: req.admin?.adminId,
+      },
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Sesi WhatsApp Web telah berhasil diputuskan.',
+      data: session,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ status: 'error', message: error.message });
+  }
+};
+
+/**
+ * 4. LOG PENGIRIMAN NOTIFIKASI & STATUS PENGIRIMAN DATA PESERTA
+ */
+export const getNotificationLogs = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const search = req.query.search ? String(req.query.search).trim() : '';
+    const statusFilter = req.query.status ? String(req.query.status).trim() : ''; // 'SENT', 'UNSENT'
+
+    // 1. Ambil semua order beserta peserta dan user
+    const orders = await prisma.order.findMany({
+      include: {
+        user: true,
+        participants: {
+          include: { event: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 150,
+    });
+
+    // 2. Ambil seluruh log pengiriman notifikasi
+    const dispatchLogs = await prisma.log.findMany({
+      where: {
+        action: {
+          in: ['NOTIFICATION_DISPATCH', 'NOTIFICATION_PENDING_MANUAL'],
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Petakan log terakhir per orderId
+    const logMap: Record<string, any> = {};
+    dispatchLogs.forEach((l) => {
+      if (l.entityId && !logMap[l.entityId]) {
+        logMap[l.entityId] = {
+          ...l,
+          metadata: l.metadata as any,
+        };
+      }
+    });
+
+    // Susun data daftar peserta dan status notifikasinya
+    let items = orders.map((ord) => {
+      const firstP = ord.participants[0];
+      const log = logMap[ord.id];
+      const isSent = log?.metadata?.whatsappSent === true || log?.metadata?.emailSent === true;
+      const isPendingManual = log?.action === 'NOTIFICATION_PENDING_MANUAL' || (!log && ord.status === 'PENDING');
+
+      let deliveryStatus: 'SENT' | 'PENDING' | 'FAILED' = 'PENDING';
+      if (isSent) {
+        deliveryStatus = 'SENT';
+      } else if (log && !isSent && log.action === 'NOTIFICATION_DISPATCH') {
+        deliveryStatus = 'FAILED';
+      }
+
+      return {
+        orderId: ord.id,
+        midtransOrderId: ord.midtransOrderId || ord.id,
+        orderStatus: ord.status,
+        customerName: ord.user?.fullName || firstP?.fullNameKtp || 'Pelari',
+        customerPhone: ord.user?.phoneNumber || firstP?.emergencyContactPhone || '-',
+        customerEmail: ord.user?.email || '-',
+        participantCount: ord.participants.length,
+        ticketCategory: firstP?.event?.category || '10K',
+        ticketName: firstP?.event?.ticketName || 'Tegal Run 2027',
+        bibNumbers: ord.participants.map((p) => p.bibNumber).filter(Boolean).join(', ') || '-',
+        totalAmount: Number(ord.totalAmount),
+        createdAt: ord.createdAt,
+        deliveryStatus,
+        whatsappSent: log?.metadata?.whatsappSent ?? false,
+        emailSent: log?.metadata?.emailSent ?? false,
+        lastDispatchedAt: log?.metadata?.sentAt || (isSent ? log?.createdAt : null),
+        lastError: log?.metadata?.errors?.[0] || null,
+        isManualPending: isPendingManual,
+      };
+    });
+
+    // Filter pencarian
+    if (search) {
+      const q = search.toLowerCase();
+      items = items.filter(
+        (it) =>
+          it.customerName.toLowerCase().includes(q) ||
+          it.customerPhone.includes(q) ||
+          it.customerEmail.toLowerCase().includes(q) ||
+          it.midtransOrderId.toLowerCase().includes(q) ||
+          it.bibNumbers.toLowerCase().includes(q)
+      );
+    }
+
+    if (statusFilter === 'SENT') {
+      items = items.filter((it) => it.deliveryStatus === 'SENT');
+    } else if (statusFilter === 'UNSENT') {
+      items = items.filter((it) => it.deliveryStatus !== 'SENT');
+    }
+
+    // Hitung ringkasan statistik
+    const totalOrders = orders.length;
+    const sentCount = orders.filter((o) => logMap[o.id]?.metadata?.whatsappSent || logMap[o.id]?.metadata?.emailSent).length;
+    const pendingCount = totalOrders - sentCount;
+
+    const dispatchModeSetting = await prisma.appSetting.findUnique({
+      where: { key: 'wa_dispatch_mode' },
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        stats: {
+          totalOrders,
+          sentCount,
+          pendingCount,
+          dispatchMode: dispatchModeSetting?.value || 'AUTO',
+        },
+        items,
+      },
+    });
+  } catch (error: any) {
+    console.error('🚨 [GET NOTIF LOGS ERROR]:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Gagal memuat log pengiriman notifikasi.',
+    });
+  }
+};
+
+/**
+ * 5. PENGIRIMAN MANUAL NOTIFIKASI UNTUK 1 ORDER
+ */
+export const dispatchSingleNotification = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const { orderId } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ status: 'error', message: 'Parameter orderId wajib disertakan.' });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      return res.status(404).json({ status: 'error', message: 'Pesanan tidak ditemukan.' });
+    }
+
+    const type = order.status === 'SETTLEMENT' || order.status === 'CAPTURE' ? 'PAID' : (order.status === 'CANCEL' ? 'CANCEL' : 'PENDING');
+
+    const result = await sendOrderNotification({
+      orderId,
+      type,
+      isManualTrigger: true,
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: result.whatsappSent || result.emailSent
+        ? 'Notifikasi berhasil dikirimkan ke peserta!'
+        : 'Notifikasi diproses namun gateway belum terhubung atau pengiriman gagal.',
+      data: result,
+    });
+  } catch (error: any) {
+    console.error('🚨 [DISPATCH NOTIF ERROR]:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Gagal mengirimkan notifikasi.',
+    });
+  }
+};
+
+/**
+ * 6. PENGIRIMAN MANUAL MASSAL (BATCH) UNTUK SEMUA PESERTA BELUM TERKIRIM
+ */
+export const dispatchBatchNotifications = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    // Ambil order yang berstatus SETTLEMENT atau PENDING
+    const orders = await prisma.order.findMany({
+      where: {
+        status: { in: ['SETTLEMENT', 'PENDING'] },
+      },
+      take: 50,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const ord of orders) {
+      try {
+        const type = ord.status === 'SETTLEMENT' ? 'PAID' : 'PENDING';
+        const resDispatch = await sendOrderNotification({
+          orderId: ord.id,
+          type,
+          isManualTrigger: true,
+        });
+        if (resDispatch.whatsappSent || resDispatch.emailSent) {
+          successCount++;
+        } else {
+          failedCount++;
+        }
+      } catch {
+        failedCount++;
+      }
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Proses batch selesai: ${successCount} berhasil dikirim, ${failedCount} gagal/pending.`,
+      data: { successCount, failedCount },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Gagal memproses batch pengiriman notifikasi.',
+    });
+  }
+};
+
+/**
+ * 7. MENGIRIM PESAN UJI COBA (TEST NOTIFICATION)
+ */
+export const sendTestNotification = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const { targetPhone, targetEmail, channel, message } = req.body;
+
+    const notifChannel = channel || 'WA';
+    let waSuccess = false;
+    let emailSuccess = false;
+    const errors: string[] = [];
+
+    const isWaConnected = await whatsappSessionService.isConnected();
+    const testMessage = message || '🧪 [TEST] Ini adalah pesan uji coba dari Sistem Notifikasi Otomatis Tegal Run 2027.';
+
+    if ((notifChannel === 'WA' || notifChannel === 'BOTH') && targetPhone) {
+      try {
+        await whatsappSessionService.sendMessage(targetPhone, testMessage);
+        waSuccess = true;
+      } catch (waErr: any) {
+        console.warn('Test WA direct error:', waErr.message);
+        errors.push(`WhatsApp Backend: ${waErr.message}`);
+      }
+    }
+
+    return res.status(200).json({
+      status: 'success',
+      message: waSuccess || emailSuccess ? 'Pesan uji coba berhasil terkirim!' : 'Pesan uji coba gagal terkirim.',
+      data: {
+        waSuccess,
+        emailSuccess,
+        errors,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Gagal mengirim pesan uji coba.',
+    });
+  }
+};
+
+/**
+ * 7. KIRIM PESAN WHATSAPP LANGSUNG DARI ADMIN CONSOLE (LIVE CHAT)
+ */
+export const sendWhatsAppDirectMessage = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const { phoneNumber, message } = req.body;
+    if (!phoneNumber || !message) {
+      return res.status(400).json({ status: 'error', message: 'Nomor telepon tujuan dan pesan wajib diisi.' });
+    }
+
+    const isConnected = await whatsappSessionService.isConnected();
+    if (!isConnected) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'WhatsApp belum terhubung. Silakan pindai QR Code terlebih dahulu.',
+      });
+    }
+
+    await whatsappSessionService.sendMessage(phoneNumber, message);
+
+    await prisma.log.create({
+      data: {
+        action: 'WHATSAPP_DIRECT_MESSAGE',
+        description: `Admin (${req.admin?.username || 'admin'}) mengirim pesan WhatsApp ke ${phoneNumber}: ${message.slice(0, 80)}...`,
+        adminId: req.admin?.adminId,
+      },
+    }).catch(() => null);
+
+    return res.status(200).json({
+      status: 'success',
+      message: `Pesan WhatsApp berhasil dikirim ke ${phoneNumber}`,
+    });
+  } catch (error: any) {
+    console.error('🚨 [DIRECT WA SEND ERROR]:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message || 'Gagal mengirim pesan WhatsApp.',
+    });
+  }
+};
