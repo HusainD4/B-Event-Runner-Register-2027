@@ -354,6 +354,7 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
     sendOrderNotification({
       orderId: orderResult.id,
       type: 'PENDING',
+      siteOrigin: req.get('origin'),
     }).catch((err) => console.warn('⚠️ Pending notification dispatch:', err.message));
 
     // 5. Kembalikan Response ke Frontend

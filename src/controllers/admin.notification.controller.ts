@@ -323,6 +323,7 @@ export const dispatchSingleNotification = async (req: AuthenticatedRequest, res:
       orderId,
       type,
       isManualTrigger: true,
+      siteOrigin: req.get('origin'),
     });
 
     return res.status(200).json({
@@ -365,6 +366,7 @@ export const dispatchBatchNotifications = async (req: AuthenticatedRequest, res:
           orderId: ord.id,
           type,
           isManualTrigger: true,
+          siteOrigin: req.get('origin'),
         });
         if (resDispatch.whatsappSent || resDispatch.emailSent) {
           successCount++;

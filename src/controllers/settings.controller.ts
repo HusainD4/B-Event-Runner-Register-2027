@@ -74,6 +74,7 @@ export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   route_gpx_url: "#",
 
   // Legal & Perizinan
+  legal_badge_label: "Kepatuhan Regulasi Indonesia",
   legal_title: "Perizinan & Kepatuhan Hukum Resmi",
   legal_desc: "Tegal Run 2027 diselenggarakan dengan izin resmi pemerintah daerah, PASI, dan standar keselamatan medis internasional.",
   legal_item_1_title: "Rekomendasi Resmi PB PASI",
@@ -84,6 +85,43 @@ export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   legal_item_3_desc: "Seluruh pelari terdaftar dilindungi asuransi kecelakaan diri selama perlombaan berlangsung.",
   legal_item_4_title: "Perlindungan Data Pribadi (UU PDP)",
   legal_item_4_desc: "Enkripsi data pendaftaran dan kepatuhan penuh perlindungan data konsumen.",
+  legal_privacy_button: "Baca Kebijakan Privasi Lengkap (UU PDP)",
+  legal_terms_button: "Ketentuan Perlombaan & Pelepasan Tanggung Jawab",
+  privacy_modal_title: "Kebijakan Privasi Data Pribadi (UU PDP)",
+  privacy_modal_subtitle: "Berdasarkan Undang-Undang Republik Indonesia Nomor 27 Tahun 2022",
+  privacy_modal_content: `1. Pengendali Data Pribadi
+Pengendali Data Pribadi untuk seluruh aktivitas pendaftaran Tegal Run 2027 adalah Komite Pelaksana yang berkedudukan di Tegal, Jawa Tengah. Kami berkomitmen melindungi data pribadi Anda sesuai UU No. 27 Tahun 2022 tentang Perlindungan Data Pribadi (UU PDP) dan UU No. 1 Tahun 2024 tentang ITE.
+
+2. Data Pribadi yang Dikumpulkan
+Data yang kami kumpulkan mencakup:
+- Data Pribadi Umum: Nama Lengkap sesuai KTP, NIK 16 digit, tempat dan tanggal lahir, jenis kelamin, alamat domisili, nomor telepon/WhatsApp, dan alamat email.
+- Data Pribadi Spesifik/Sensitif: Golongan darah dan riwayat penyakit/alergi medis yang diserahkan secara sukarela untuk penanganan darurat tim medis di rute perlombaan.
+
+3. Dasar Hukum dan Tujuan Pemrosesan
+Pemrosesan data pribadi dilakukan berdasarkan persetujuan eksplisit untuk tujuan:
+- Verifikasi kepemilikan nomor BIB resmi guna mencegah pemalsuan identitas atau praktik joki.
+- Penerbitan polis asuransi perlindungan kecelakaan olahraga selama perlombaan.
+- Penyelamatan jiwa oleh tim medis darurat jika terjadi kondisi gawat darurat di lintasan.
+- Pengiriman hasil waktu lomba (Race Timing) dan e-Certificate resmi.
+
+4. Keamanan dan Masa Retensi Data
+Data disimpan pada server dengan protokol SSL/TLS dan pembatasan akses. Masa simpan data maksimal satu tahun kalender setelah event selesai untuk kebutuhan audit keselamatan dan keuangan; setelah itu data dianonimkan atau dimusnahkan secara aman.
+
+5. Hak Anda sebagai Subjek Data
+Berdasarkan Pasal 5 s.d. Pasal 13 UU PDP, Anda berhak mengakses, memperbaiki kesalahan data, menolak pemrosesan otomatis, serta mengajukan permohonan penghapusan data. Hubungi Petugas Perlindungan Data melalui surel resmi: dpo@tegalrun.id.`,
+  terms_modal_title: "Syarat & Ketentuan Peserta Lari",
+  terms_modal_subtitle: "Regulasi Resmi Perlombaan",
+  terms_modal_content: `1. Ketentuan Umum Kepesertaan
+Pendaftaran terbuka untuk WNI dan WNA yang memiliki identitas resmi (KTP/SIM/Paspor). Peserta wajib memilih kategori sesuai kemampuan fisik dan mematuhi batas waktu Cut-Off Time (COT).
+
+2. Larangan Praktik Joki & Pengalihan BIB
+Nomor BIB bersifat personal dan tidak dapat diperjualbelikan atau dialihkan kepada pihak lain tanpa persetujuan tertulis panitia. Pelanggaran dapat mengakibatkan diskualifikasi, pencabutan hak medali finisher, dan hilangnya perlindungan asuransi.
+
+3. Pelepasan Tanggung Jawab Medis (Waiver of Liability)
+Dengan menyelesaikan pendaftaran, peserta menyadari bahwa lari maraton adalah aktivitas fisik berintensitas tinggi. Peserta bertanggung jawab atas kondisi kesehatannya dan membebaskan panitia, sponsor, serta aparat pengamanan dari tuntutan atas cedera, kehilangan harta benda, atau insiden akibat kondisi kesehatan bawaan yang tidak diungkapkan kepada tim medis.
+
+4. Kebijakan Keadaan Kahar (Force Majeure)
+Apabila terjadi bencana alam, kebakaran, kerusuhan sosial, atau kebijakan pemerintah terkait keamanan wilayah yang menyebabkan acara dibatalkan, panitia tidak berkewajiban mengembalikan biaya pendaftaran yang telah digunakan untuk produksi racepack dan operasional awal.`,
 
   // Countdown & Registrasi
   IS_REGISTRATION_CLOSED: "false",
@@ -172,6 +210,15 @@ export const getPublicCheckoutConfig = async (req: Request, res: Response): Prom
   }
 };
 
+const PUBLIC_WEBSITE_SETTING_KEYS = [
+  ...Object.keys(DEFAULT_WEBSITE_SETTINGS),
+  'stats_banner_items',
+  'facilities_items',
+  'legal_items',
+  'faq_items',
+  'cms_visibility',
+];
+
 /**
  * Mengambil seluruh pengaturan konten website CMS (Public)
  */
@@ -184,7 +231,7 @@ export const getWebsiteSettings = async (req: AuthenticatedRequest, res: Respons
       permissions.includes('cms:manage') ||
       permissions.includes('cms:*') ||
       permissions.includes('page:cms');
-    const routeOnly = !canReadCms;
+    const routeOnly = Boolean(req.admin) && !canReadCms;
 
     dbSettings.forEach((item) => {
       settingsMap[item.key] = item.value;
@@ -205,6 +252,13 @@ export const getWebsiteSettings = async (req: AuthenticatedRequest, res: Respons
       return res.status(200).json({
         status: 'success',
         data: Object.fromEntries(routeKeys.map(key => [key, settingsMap[key] || '']))
+      });
+    }
+
+    if (!req.admin) {
+      return res.status(200).json({
+        status: 'success',
+        data: Object.fromEntries(PUBLIC_WEBSITE_SETTING_KEYS.map(key => [key, settingsMap[key] || '']))
       });
     }
 
@@ -442,6 +496,31 @@ export const updateWebsiteSettings = async (req: AuthenticatedRequest, res: Resp
       });
     }
     Object.assign(settingsPayload, comingSoonSettingsSchema.data);
+
+    const legalContentSchema = z.object({
+      legal_badge_label: z.string().trim().max(80).optional(),
+      legal_title: z.string().trim().max(160).optional(),
+      legal_desc: z.string().trim().max(2000).optional(),
+      legal_privacy_button: z.string().trim().max(120).optional(),
+      legal_terms_button: z.string().trim().max(120).optional(),
+      privacy_modal_title: z.string().trim().max(160).optional(),
+      privacy_modal_subtitle: z.string().trim().max(240).optional(),
+      privacy_modal_content: z.string().max(12000).optional(),
+      terms_modal_title: z.string().trim().max(160).optional(),
+      terms_modal_subtitle: z.string().trim().max(240).optional(),
+      terms_modal_content: z.string().max(12000).optional(),
+    }).safeParse(payload);
+    if (!legalContentSchema.success) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Pengaturan konten legal tidak valid.',
+        errors: legalContentSchema.error.errors.map(error => ({
+          field: error.path.join('.'),
+          message: error.message
+        }))
+      });
+    }
+    Object.assign(settingsPayload, legalContentSchema.data);
 
     const routeSettingsSchema = z.object({
       route_badge_label: z.string().max(80).optional(),

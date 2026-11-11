@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import QRCode from 'qrcode';
 import prisma from '../config/database';
 import { emitStockUpdate } from '../sockets/index';
 import { sendOrderNotification } from '../services/notification.service';
@@ -165,7 +166,7 @@ export const searchTickets = async (req: Request, res: Response): Promise<any> =
     // Sinkronkan status realtime dari Midtrans jika masih PENDING
     for (const ord of orders) {
       if (ord.status === 'PENDING') {
-        await syncOrderWithMidtrans(ord);
+        await syncOrderWithMidtrans(ord, req.get('origin'));
       }
     }
 
@@ -185,7 +186,7 @@ export const searchTickets = async (req: Request, res: Response): Promise<any> =
 /**
  * Helper sinkronisasi status transaksi dari Midtrans Core API secara otomatis
  */
-async function syncOrderWithMidtrans(order: any): Promise<boolean> {
+async function syncOrderWithMidtrans(order: any, siteOrigin?: string): Promise<boolean> {
   if (!order || order.status === 'SETTLEMENT' || !order.midtransOrderId || order.midtransOrderId.startsWith('OFFLINE-')) {
     return false;
   }
@@ -232,6 +233,7 @@ async function syncOrderWithMidtrans(order: any): Promise<boolean> {
       sendOrderNotification({
         orderId: order.id,
         type: 'PAID',
+        siteOrigin,
       }).catch((err) => console.warn('Notif paid sync warning:', err));
 
       return true;
@@ -312,7 +314,7 @@ export const getETicketData = async (req: Request, res: Response): Promise<any> 
     // Periksa status real-time ke Midtrans jika belum SETTLEMENT / CAPTURE
     const isPaidStatus = order.status === 'SETTLEMENT' || order.status === 'CAPTURE';
     if (!isPaidStatus) {
-      await syncOrderWithMidtrans(order);
+      await syncOrderWithMidtrans(order, req.get('origin'));
     }
 
     const isNowPaid = order.status === 'SETTLEMENT' || order.status === 'CAPTURE';
@@ -329,13 +331,26 @@ export const getETicketData = async (req: Request, res: Response): Promise<any> 
     const orderRef = order.midtransOrderId || order.id;
     for (const p of order.participants) {
       p.qrPayload = await generateSingleQrString(orderRef, p.id, null, p.nik);
+      p.qrImageDataUrl = await QRCode.toDataURL(p.qrPayload, {
+        width: 480,
+        margin: 4,
+        errorCorrectionLevel: 'H',
+        color: { dark: '#000000', light: '#FFFFFF' },
+      });
       delete p.bibNumber; // Bersihkan nomor BIB dari response E-Tiket publik demi keamanan
     }
 
     // Buat Master QR Code jika pesanan memiliki lebih dari 1 tiket
     let masterQrPayload: string | null = null;
+    let masterQrImageDataUrl: string | null = null;
     if (order.participants.length > 1) {
       masterQrPayload = await generateMasterQrString(orderRef, order.participants.length);
+      masterQrImageDataUrl = await QRCode.toDataURL(masterQrPayload, {
+        width: 480,
+        margin: 4,
+        errorCorrectionLevel: 'H',
+        color: { dark: '#000000', light: '#FFFFFF' },
+      });
     }
 
     // Ambil petunjuk racepack dari database
@@ -356,6 +371,7 @@ export const getETicketData = async (req: Request, res: Response): Promise<any> 
       data: {
         ...order,
         masterQrPayload,
+        masterQrImageDataUrl,
         racepackInstructions,
       },
     });
@@ -443,6 +459,7 @@ export const cancelOrder = async (req: Request, res: Response): Promise<any> => 
       orderId: order.id,
       type: 'CANCEL',
       customNote: reason,
+      siteOrigin: req.get('origin'),
     }).catch((err) => console.warn('Notif cancel warning:', err));
 
     return res.status(200).json({
@@ -544,6 +561,7 @@ export const syncMidtransStatus = async (req: Request, res: Response): Promise<a
       sendOrderNotification({
         orderId: order.id,
         type: 'PAID',
+        siteOrigin: req.get('origin'),
       }).catch((err) => console.warn('Notif paid sync warning:', err));
     } else if (['CANCEL', 'EXPIRE'].includes(finalStatus) && order.status === 'PENDING') {
       // Kembalikan kuota tiket jika transaksi dibatalkan / expired

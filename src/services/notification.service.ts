@@ -2,12 +2,30 @@ import axios from 'axios';
 import nodemailer from 'nodemailer';
 import prisma from '../config/database';
 import { whatsappSessionService } from './whatsapp-session.service';
+import { allowedOrigins } from '../config/cors';
 
 export interface NotificationPayload {
   orderId: string;
   type: 'PAID' | 'PENDING' | 'CANCEL';
   customNote?: string;
   isManualTrigger?: boolean;
+  siteOrigin?: string;
+}
+
+function resolveSiteBaseUrl(siteOrigin?: string): string {
+  if (siteOrigin) {
+    try {
+      const parsedOrigin = new URL(siteOrigin);
+      const isExactOrigin = parsedOrigin.origin === siteOrigin;
+      const isAllowedLocalOrigin = /^http:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(siteOrigin);
+      if (isExactOrigin && (allowedOrigins.includes(siteOrigin) || isAllowedLocalOrigin)) {
+        return parsedOrigin.origin;
+      }
+    } catch {
+      // Use the configured public URL when the request origin is malformed or untrusted.
+    }
+  }
+  return (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, '');
 }
 
 /**
@@ -124,7 +142,7 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
     const recipientEmail = order.user?.email;
     const recipientName = order.user?.fullName || firstP?.fullNameKtp || 'Pelari';
 
-    const baseUrl = process.env.APP_URL || 'http://localhost:5173';
+    const baseUrl = resolveSiteBaseUrl(payload.siteOrigin);
     const eTicketUrl = `${baseUrl}/e-ticket.html?orderId=${order.id}`;
     const paymentUrl = `${baseUrl}/payment.html?orderId=${order.id}`;
     const pdfUrl = `${baseUrl}/e-ticket.html?orderId=${order.id}&print=pdf`;
