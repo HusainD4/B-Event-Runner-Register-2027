@@ -9,30 +9,76 @@ import type { AuthenticatedRequest } from '../middlewares/auth';
  */
 export const AVAILABLE_PERMISSIONS = [
   { key: '*', label: 'Semua Hak Akses (Akses Penuh Tanpa Batas)' },
+  { key: 'events:*', label: 'Semua izin event' },
   { key: 'events:read', label: 'Melihat Daftar & Detail Event' },
   { key: 'events:create', label: 'Menambah Event Baru' },
   { key: 'events:update', label: 'Mengubah Data Event' },
   { key: 'events:delete', label: 'Menghapus Event' },
   { key: 'benefits:manage', label: 'Kelola Manfaat/Benefit Event' },
+  { key: 'benefits:*', label: 'Semua izin benefit event' },
   { key: 'jerseys:manage', label: 'Kelola Jersey & Ukuran' },
+  { key: 'jerseys:*', label: 'Semua izin jersey' },
   { key: 'bib:manage', label: 'Kelola Konfigurasi & Generate BIB' },
+  { key: 'bib:*', label: 'Semua izin BIB' },
+  { key: 'routes:manage', label: 'Kelola Peta & Checkpoint' },
+  { key: 'routes:read', label: 'Melihat Peta & Checkpoint' },
+  { key: 'routes:*', label: 'Semua izin rute' },
+  { key: 'cms:manage', label: 'Kelola Konten Website & CMS' },
+  { key: 'cms:*', label: 'Semua izin CMS' },
+  { key: 'countdown:manage', label: 'Kelola Countdown & Status Event' },
+  { key: 'countdown:*', label: 'Semua izin countdown' },
+  { key: 'notifications:manage', label: 'Kelola Pengaturan Notifikasi' },
+  { key: 'notifications:*', label: 'Semua izin notifikasi' },
+  { key: 'notifications:read', label: 'Melihat Log Notifikasi' },
+  { key: 'notifications:dispatch', label: 'Mengirim Notifikasi' },
+  { key: 'whatsapp:chat', label: 'Mengirim Pesan WhatsApp' },
+  { key: 'whatsapp:session', label: 'Mengelola Sesi WhatsApp' },
+  { key: 'whatsapp:*', label: 'Semua izin WhatsApp' },
+  { key: 'racepack:checkin', label: 'Validasi & Check-in Racepack' },
+  { key: 'racepack:*', label: 'Semua izin racepack' },
   { key: 'participants:read', label: 'Melihat Data Peserta' },
+  { key: 'participants:*', label: 'Semua izin peserta' },
   { key: 'participants:create', label: 'Mendaftarkan Peserta Manual' },
   { key: 'participants:update', label: 'Mengubah Data Peserta' },
   { key: 'participants:delete', label: 'Menghapus Peserta' },
   { key: 'orders:read', label: 'Melihat Data Pesanan/Transaksi' },
+  { key: 'orders:*', label: 'Semua izin transaksi' },
   { key: 'orders:update', label: 'Mengubah Status Transaksi (Settlement/Cancel/Refund)' },
   { key: 'orders:delete', label: 'Menghapus Transaksi' },
   { key: 'finance:read', label: 'Melihat Ringkasan Keuangan & Pendapatan' },
+  { key: 'finance:*', label: 'Semua izin keuangan' },
   { key: 'users:read', label: 'Melihat Data User Terdaftar' },
   { key: 'users:update', label: 'Mengubah Data User' },
   { key: 'users:delete', label: 'Menghapus User' },
+  { key: 'users:*', label: 'Semua izin user' },
   { key: 'logs:read', label: 'Melihat Log Aktivitas Sistem' },
+  { key: 'logs:*', label: 'Semua izin log' },
   { key: 'admins:manage', label: 'Kelola Akun Admin & Hak Akses (Superadmin)' },
 ];
 
+export const DASHBOARD_WIDGETS = [
+  { key: 'dashboard:participants', label: 'Jumlah peserta', desc: 'Total peserta terdaftar' },
+  { key: 'dashboard:revenue', label: 'Omzet kotor', desc: 'Total transaksi lunas' },
+  { key: 'dashboard:service-fee', label: 'Biaya layanan', desc: 'Akumulasi biaya layanan' },
+  { key: 'dashboard:net-revenue', label: 'Pendapatan bersih', desc: 'Omzet setelah potongan biaya layanan' },
+  { key: 'dashboard:finance-breakdown', label: 'Rincian rekonsiliasi', desc: 'Lunas, pending, batal, dan perhitungan akhir' },
+  { key: 'dashboard:registration-trend', label: 'Grafik pendaftaran', desc: 'Tren dan pertumbuhan pendaftaran selama 30 hari terakhir' },
+  { key: 'dashboard:revenue-trend', label: 'Grafik pemasukan', desc: 'Tren omzet transaksi lunas selama 30 hari terakhir' },
+  { key: 'dashboard:payment-status', label: 'Status pembayaran', desc: 'Ringkasan jumlah order berdasarkan status pembayaran' },
+  { key: 'dashboard:conversion', label: 'Konversi & nilai transaksi', desc: 'Rasio transaksi lunas dan rata-rata nilai transaksi' },
+  { key: 'dashboard:event-performance', label: 'Performa event & kuota', desc: 'Peserta terdaftar, kapasitas, dan sisa kuota setiap event' },
+  { key: 'dashboard:category-performance', label: 'Performa kategori', desc: 'Perbandingan pendaftar dan kapasitas per kategori event' },
+  { key: 'dashboard:participant-profile', label: 'Profil peserta', desc: 'Distribusi gender dan kelompok usia peserta aktif' },
+  { key: 'dashboard:jersey-sizes', label: 'Distribusi ukuran jersey', desc: 'Jumlah peserta aktif pada setiap ukuran jersey' },
+  { key: 'dashboard:racepack-checkin', label: 'Status check-in racepack', desc: 'Perbandingan peserta lunas yang sudah dan belum mengambil racepack' },
+  { key: 'dashboard:team-presence', label: 'Kru & status online', desc: 'Jumlah anggota aktif sesuai role dan siapa yang sedang online' },
+  { key: 'dashboard:recent-orders', label: 'Transaksi terbaru', desc: 'Daftar ringkas transaksi terbaru' },
+  { key: 'dashboard:recent-activity', label: 'Aktivitas terbaru', desc: 'Riwayat aktivitas admin terbaru' },
+  { key: 'dashboard:quicklinks', label: 'Pintasan cepat', desc: 'Kartu navigasi ke modul admin' },
+];
+
 /**
- * 12 Modul / Halaman Utama Portal Admin yang dapat diatur hak aksesnya oleh Superadmin
+ * Halaman yang tersedia pada navigasi Portal Admin.
  */
 export const SYSTEM_MODULES = [
   {
@@ -49,7 +95,7 @@ export const SYSTEM_MODULES = [
     group: 'MENU UTAMA',
     icon: 'fa-calendar-days',
     desc: 'Kelola kategori tiket, harga, kuota, benefit racepack, dan ukuran jersey',
-    apiPermissions: ['events:read', 'events:create', 'events:update', 'events:delete', 'benefits:manage', 'jerseys:manage', 'bib:manage'],
+    apiPermissions: ['events:read', 'events:create', 'events:update', 'events:delete', 'benefits:manage', 'jerseys:manage'],
   },
   {
     key: 'page:participants',
@@ -57,7 +103,7 @@ export const SYSTEM_MODULES = [
     group: 'MENU UTAMA',
     icon: 'fa-users',
     desc: 'Melihat pendaftar, edit data, generate BIB, status pembayaran & status racepack',
-    apiPermissions: ['participants:read', 'participants:create', 'participants:update', 'participants:delete', 'bib:manage', 'jerseys:manage'],
+    apiPermissions: ['participants:read', 'participants:create', 'participants:update', 'participants:delete', 'bib:manage'],
   },
   {
     key: 'page:racepack',
@@ -66,6 +112,14 @@ export const SYSTEM_MODULES = [
     icon: 'fa-box-open',
     desc: 'Validasi E-Tiket via kamera HP/scanner QR, serah terima racepack, jersey, BIB & check-in',
     apiPermissions: ['participants:read', 'participants:update', 'racepack:checkin'],
+  },
+  {
+    key: 'page:racepack-view',
+    label: 'Live View Antrean Racepack',
+    group: 'MENU UTAMA',
+    icon: 'fa-list-check',
+    desc: 'Pantau antrean check-in racepack secara langsung',
+    apiPermissions: ['participants:read'],
   },
   {
     key: 'page:orders',
@@ -81,7 +135,7 @@ export const SYSTEM_MODULES = [
     group: 'MENU UTAMA',
     icon: 'fa-paper-plane',
     desc: 'Riwayat pengiriman E-Tiket dan pengingat via WhatsApp & Email',
-    apiPermissions: ['events:update', 'notifications:read', 'notifications:dispatch'],
+    apiPermissions: ['notifications:read', 'notifications:dispatch'],
   },
   {
     key: 'page:whatsapp-web',
@@ -89,7 +143,7 @@ export const SYSTEM_MODULES = [
     group: 'MENU UTAMA',
     icon: 'fa-brands fa-whatsapp',
     desc: 'Pusat interaksi langsung WhatsApp Web, CS, dan kirim pesan ke peserta',
-    apiPermissions: ['events:update', 'notifications:manage', 'whatsapp:chat', 'whatsapp:session'],
+    apiPermissions: ['notifications:manage', 'whatsapp:chat', 'whatsapp:session'],
   },
   {
     key: 'page:cms',
@@ -97,7 +151,7 @@ export const SYSTEM_MODULES = [
     group: 'KONFIGURASI',
     icon: 'fa-pen-ruler',
     desc: 'Kelola teks landing page, daftar sponsor, FAQ, dan informasi publik',
-    apiPermissions: ['events:update', 'cms:manage'],
+    apiPermissions: ['cms:manage'],
   },
   {
     key: 'page:countdown',
@@ -105,7 +159,7 @@ export const SYSTEM_MODULES = [
     group: 'KONFIGURASI',
     icon: 'fa-stopwatch-20',
     desc: 'Atur tanggal target lomba, buka/tutup pendaftaran darurat',
-    apiPermissions: ['events:update', 'countdown:manage'],
+    apiPermissions: ['countdown:manage'],
   },
   {
     key: 'page:notifications',
@@ -113,7 +167,7 @@ export const SYSTEM_MODULES = [
     group: 'KONFIGURASI',
     icon: 'fa-bell',
     desc: 'Koneksi WhatsApp Web backend, scan QR, konfigurasi SMTP, template pesan',
-    apiPermissions: ['events:update', 'notifications:manage'],
+    apiPermissions: ['notifications:manage'],
   },
   {
     key: 'page:routes',
@@ -121,7 +175,15 @@ export const SYSTEM_MODULES = [
     group: 'KONFIGURASI',
     icon: 'fa-map-pin',
     desc: 'Kelola peta jalur 5K/10K/Half/Full, water station, pos medis, marshall point',
-    apiPermissions: ['events:update', 'routes:manage'],
+    apiPermissions: ['routes:read', 'routes:manage'],
+  },
+  {
+    key: 'page:bib-settings',
+    label: 'Pengaturan BIB & E-Tiket',
+    group: 'KONFIGURASI',
+    icon: 'fa-id-badge',
+    desc: 'Konfigurasi BIB, QR, instruksi racepack, dan biaya tiket',
+    apiPermissions: ['bib:manage'],
   },
   {
     key: 'page:admins',
@@ -148,15 +210,16 @@ export const DEFAULT_SYSTEM_ROLES = [
   {
     name: 'SUPERADMIN',
     description: 'Pemegang kendali tertinggi seluruh sistem, server, database, dan konfigurasi hak akses.',
-    pages: ['page:dashboard', 'page:events', 'page:participants', 'page:racepack', 'page:orders', 'page:notif-logs', 'page:whatsapp-web', 'page:cms', 'page:countdown', 'page:notifications', 'page:routes', 'page:admins', 'page:logs'],
-    permissions: ['*'],
+    pages: ['page:dashboard', 'page:events', 'page:participants', 'page:racepack', 'page:racepack-view', 'page:orders', 'page:notif-logs', 'page:whatsapp-web', 'page:bib-settings', 'page:cms', 'page:countdown', 'page:notifications', 'page:routes', 'page:admins', 'page:logs'],
+    permissions: ['*', 'dashboard:configured', 'dashboard:participants', 'dashboard:revenue', 'dashboard:service-fee', 'dashboard:net-revenue', 'dashboard:finance-breakdown', 'dashboard:registration-trend', 'dashboard:revenue-trend', 'dashboard:payment-status', 'dashboard:conversion', 'dashboard:event-performance', 'dashboard:category-performance', 'dashboard:participant-profile', 'dashboard:jersey-sizes', 'dashboard:racepack-checkin', 'dashboard:team-presence', 'dashboard:recent-orders', 'dashboard:recent-activity', 'dashboard:quicklinks'],
   },
   {
     name: 'ADMINISTRATOR',
     description: 'Koordinator operasional utama event. Mengelola kuota, peserta, rute, dan publikasi website.',
-    pages: ['page:dashboard', 'page:events', 'page:participants', 'page:racepack', 'page:orders', 'page:notif-logs', 'page:whatsapp-web', 'page:cms', 'page:countdown', 'page:routes'],
+    pages: ['page:dashboard', 'page:events', 'page:participants', 'page:racepack', 'page:racepack-view', 'page:orders', 'page:notif-logs', 'page:whatsapp-web', 'page:bib-settings', 'page:cms', 'page:countdown', 'page:routes'],
     permissions: [
-      'page:dashboard', 'page:events', 'page:participants', 'page:racepack', 'page:orders', 'page:notif-logs', 'page:whatsapp-web', 'page:cms', 'page:countdown', 'page:routes',
+      'page:dashboard', 'page:events', 'page:participants', 'page:racepack', 'page:racepack-view', 'page:orders', 'page:notif-logs', 'page:whatsapp-web', 'page:bib-settings', 'page:cms', 'page:countdown', 'page:routes',
+      'dashboard:configured', 'dashboard:participants', 'dashboard:revenue', 'dashboard:service-fee', 'dashboard:net-revenue', 'dashboard:finance-breakdown', 'dashboard:registration-trend', 'dashboard:revenue-trend', 'dashboard:payment-status', 'dashboard:conversion', 'dashboard:event-performance', 'dashboard:category-performance', 'dashboard:participant-profile', 'dashboard:jersey-sizes', 'dashboard:racepack-checkin', 'dashboard:team-presence', 'dashboard:recent-orders', 'dashboard:recent-activity', 'dashboard:quicklinks',
       'events:*', 'participants:*', 'orders:read', 'orders:update', 'benefits:*', 'jerseys:*', 'bib:*', 'routes:*', 'cms:*', 'countdown:*', 'notifications:*'
     ],
   },
@@ -166,6 +229,7 @@ export const DEFAULT_SYSTEM_ROLES = [
     pages: ['page:dashboard', 'page:orders', 'page:logs'],
     permissions: [
       'page:dashboard', 'page:orders', 'page:logs',
+      'dashboard:configured', 'dashboard:participants', 'dashboard:revenue', 'dashboard:service-fee', 'dashboard:net-revenue', 'dashboard:finance-breakdown', 'dashboard:revenue-trend', 'dashboard:payment-status', 'dashboard:conversion', 'dashboard:recent-orders', 'dashboard:recent-activity', 'dashboard:team-presence', 'dashboard:quicklinks',
       'orders:*', 'finance:read', 'logs:read'
     ],
   },
@@ -175,6 +239,7 @@ export const DEFAULT_SYSTEM_ROLES = [
     pages: ['page:dashboard', 'page:cms', 'page:events', 'page:notif-logs'],
     permissions: [
       'page:dashboard', 'page:cms', 'page:events', 'page:notif-logs',
+      'dashboard:configured', 'dashboard:participants', 'dashboard:event-performance', 'dashboard:category-performance', 'dashboard:team-presence', 'dashboard:quicklinks',
       'cms:*', 'events:read', 'benefits:manage', 'notifications:read'
     ],
   },
@@ -184,7 +249,8 @@ export const DEFAULT_SYSTEM_ROLES = [
     pages: ['page:dashboard', 'page:racepack', 'page:participants', 'page:whatsapp-web'],
     permissions: [
       'page:dashboard', 'page:racepack', 'page:participants', 'page:whatsapp-web',
-      'participants:read', 'participants:update', 'jerseys:manage', 'bib:manage', 'whatsapp:chat'
+      'dashboard:configured', 'dashboard:participants', 'dashboard:registration-trend', 'dashboard:participant-profile', 'dashboard:jersey-sizes', 'dashboard:racepack-checkin', 'dashboard:team-presence', 'dashboard:quicklinks',
+      'participants:read', 'participants:update', 'racepack:checkin', 'jerseys:manage', 'bib:manage', 'whatsapp:chat', 'whatsapp:session'
     ],
   },
   {
@@ -193,6 +259,7 @@ export const DEFAULT_SYSTEM_ROLES = [
     pages: ['page:dashboard', 'page:participants'],
     permissions: [
       'page:dashboard', 'page:participants',
+      'dashboard:configured', 'dashboard:participants', 'dashboard:payment-status', 'dashboard:conversion', 'dashboard:racepack-checkin', 'dashboard:team-presence', 'dashboard:quicklinks',
       'participants:read', 'orders:read'
     ],
   },
@@ -202,6 +269,7 @@ export const DEFAULT_SYSTEM_ROLES = [
     pages: ['page:dashboard', 'page:routes', 'page:countdown', 'page:participants', 'page:events'],
     permissions: [
       'page:dashboard', 'page:routes', 'page:countdown', 'page:participants', 'page:events',
+      'dashboard:configured', 'dashboard:participants', 'dashboard:registration-trend', 'dashboard:participant-profile', 'dashboard:event-performance', 'dashboard:category-performance', 'dashboard:racepack-checkin', 'dashboard:team-presence', 'dashboard:quicklinks',
       'routes:*', 'countdown:*', 'events:read', 'participants:read'
     ],
   },
@@ -211,6 +279,7 @@ export const DEFAULT_SYSTEM_ROLES = [
     pages: ['page:dashboard', 'page:participants', 'page:routes'],
     permissions: [
       'page:dashboard', 'page:participants', 'page:routes',
+      'dashboard:configured', 'dashboard:participants', 'dashboard:registration-trend', 'dashboard:participant-profile', 'dashboard:jersey-sizes', 'dashboard:racepack-checkin', 'dashboard:team-presence', 'dashboard:quicklinks',
       'participants:read', 'bib:manage', 'routes:manage'
     ],
   },
@@ -220,6 +289,7 @@ export const DEFAULT_SYSTEM_ROLES = [
     pages: ['page:dashboard', 'page:participants', 'page:routes'],
     permissions: [
       'page:dashboard', 'page:participants', 'page:routes',
+      'dashboard:configured', 'dashboard:participants', 'dashboard:registration-trend', 'dashboard:participant-profile', 'dashboard:jersey-sizes', 'dashboard:racepack-checkin', 'dashboard:team-presence', 'dashboard:quicklinks',
       'participants:read', 'routes:manage'
     ],
   },
@@ -229,6 +299,7 @@ export const DEFAULT_SYSTEM_ROLES = [
     pages: ['page:dashboard', 'page:participants'],
     permissions: [
       'page:dashboard', 'page:participants',
+      'dashboard:configured', 'dashboard:participants', 'dashboard:registration-trend', 'dashboard:participant-profile', 'dashboard:jersey-sizes', 'dashboard:racepack-checkin', 'dashboard:team-presence', 'dashboard:quicklinks',
       'participants:read'
     ],
   },
@@ -238,6 +309,7 @@ export const DEFAULT_SYSTEM_ROLES = [
     pages: ['page:dashboard', 'page:participants'],
     permissions: [
       'page:dashboard', 'page:participants',
+      'dashboard:configured', 'dashboard:participants', 'dashboard:registration-trend', 'dashboard:participant-profile', 'dashboard:jersey-sizes', 'dashboard:racepack-checkin', 'dashboard:team-presence', 'dashboard:quicklinks',
       'participants:read'
     ],
   },
@@ -247,6 +319,7 @@ export const DEFAULT_SYSTEM_ROLES = [
     pages: ['page:dashboard', 'page:whatsapp-web', 'page:notif-logs', 'page:participants', 'page:orders'],
     permissions: [
       'page:dashboard', 'page:whatsapp-web', 'page:notif-logs', 'page:participants', 'page:orders',
+      'dashboard:configured', 'dashboard:participants', 'dashboard:registration-trend', 'dashboard:participant-profile', 'dashboard:jersey-sizes', 'dashboard:racepack-checkin', 'dashboard:payment-status', 'dashboard:conversion', 'dashboard:team-presence', 'dashboard:quicklinks',
       'whatsapp:chat', 'whatsapp:session', 'notifications:read', 'participants:read', 'orders:read'
     ],
   },
@@ -316,14 +389,25 @@ export async function ensureDefaultRolesInDatabase() {
 const createRoleSchema = z.object({
   name: z.string().min(2, 'Nama role minimal 2 karakter').toUpperCase(),
   description: z.string().optional(),
-  permissions: z.array(z.string()).min(1, 'Role harus memiliki minimal 1 hak akses'),
+  permissions: z.array(z.string()).min(1, 'Role harus memiliki minimal 1 hak akses').max(100)
+    .refine(permissions => permissions.every(permission => isKnownRolePermission(permission)), 'Daftar hak akses berisi izin yang tidak dikenal.'),
 });
 
 const updateRoleSchema = z.object({
   name: z.string().min(2, 'Nama role minimal 2 karakter').toUpperCase().optional(),
   description: z.string().optional(),
-  permissions: z.array(z.string()).min(1, 'Role harus memiliki minimal 1 hak akses').optional(),
+  permissions: z.array(z.string()).min(1, 'Role harus memiliki minimal 1 hak akses').max(100)
+    .refine(permissions => permissions.every(permission => isKnownRolePermission(permission)), 'Daftar hak akses berisi izin yang tidak dikenal.')
+    .optional(),
 });
+
+function isKnownRolePermission(permission: string): boolean {
+  return permission === '*' ||
+    permission === 'dashboard:configured' ||
+    AVAILABLE_PERMISSIONS.some(item => item.key === permission && item.key !== '*') ||
+    SYSTEM_MODULES.some(module => module.key === permission) ||
+    DASHBOARD_WIDGETS.some(widget => widget.key === permission);
+}
 
 const createAdminSchema = z.object({
   username: z.string().min(3, 'Username minimal 3 karakter').regex(/^[a-zA-Z0-9_]+$/, 'Username hanya boleh huruf, angka, dan underscore'),
@@ -353,6 +437,7 @@ export const getSystemPermissions = async (req: AuthenticatedRequest, res: Respo
     data: {
       permissions: AVAILABLE_PERMISSIONS,
       modules: SYSTEM_MODULES,
+      dashboardWidgets: DASHBOARD_WIDGETS,
       defaultRoles: DEFAULT_SYSTEM_ROLES,
     },
   });
@@ -374,8 +459,7 @@ export const getAllRoles = async (req: AuthenticatedRequest, res: Response): Pro
 
     const enrichedRoles = roles.map((r) => {
       const perms: string[] = Array.isArray(r.permissions) ? r.permissions : [];
-      const isSuper = r.name === 'SUPERADMIN' || perms.includes('*');
-      const activePages = isSuper
+      const activePages = r.name === 'SUPERADMIN'
         ? SYSTEM_MODULES.map((m) => m.key)
         : perms.filter((p: string) => p.startsWith('page:'));
 
@@ -390,6 +474,8 @@ export const getAllRoles = async (req: AuthenticatedRequest, res: Response): Pro
       status: 'success',
       data: enrichedRoles,
       modules: SYSTEM_MODULES,
+      permissions: AVAILABLE_PERMISSIONS,
+      dashboardWidgets: DASHBOARD_WIDGETS,
     });
   } catch (error) {
     console.error('🚨 [GET ROLES ERROR]:', error);
@@ -465,6 +551,15 @@ export const createRole = async (req: AuthenticatedRequest, res: Response): Prom
     }
 
     const { name, description, permissions } = parseResult.data;
+    if (permissions.includes('*') && name !== 'SUPERADMIN') {
+      return res.status(400).json({ status: 'error', message: 'Akses penuh hanya dapat diberikan kepada role SUPERADMIN.' });
+    }
+    if (name !== 'SUPERADMIN' && !permissions.some(permission => permission.startsWith('page:'))) {
+      return res.status(400).json({ status: 'error', message: 'Role harus memiliki minimal satu halaman yang diizinkan.' });
+    }
+    if (name !== 'SUPERADMIN' && (permissions.includes('admins:manage') || permissions.includes('page:admins'))) {
+      return res.status(400).json({ status: 'error', message: 'Pengelolaan akun dan role hanya dapat diberikan kepada role SUPERADMIN.' });
+    }
 
     const existingRole = await prisma.role.findUnique({ where: { name } });
     if (existingRole) {
@@ -520,6 +615,17 @@ export const updateRole = async (req: AuthenticatedRequest, res: Response): Prom
 
     if (existingRole.name === 'SUPERADMIN' && parseResult.data.name && parseResult.data.name !== 'SUPERADMIN') {
       return res.status(400).json({ status: 'error', message: 'Nama role SUPERADMIN tidak boleh diubah.' });
+    }
+    if (parseResult.data.permissions?.includes('*') && (existingRole.name !== 'SUPERADMIN' || parseResult.data.name && parseResult.data.name !== 'SUPERADMIN')) {
+      return res.status(400).json({ status: 'error', message: 'Akses penuh hanya dapat diberikan kepada role SUPERADMIN.' });
+    }
+    const updatedRoleName = parseResult.data.name || existingRole.name;
+    if (updatedRoleName !== 'SUPERADMIN' && parseResult.data.permissions &&
+      !parseResult.data.permissions.some(permission => permission.startsWith('page:'))) {
+      return res.status(400).json({ status: 'error', message: 'Role harus memiliki minimal satu halaman yang diizinkan.' });
+    }
+    if (updatedRoleName !== 'SUPERADMIN' && (parseResult.data.permissions?.includes('admins:manage') || parseResult.data.permissions?.includes('page:admins'))) {
+      return res.status(400).json({ status: 'error', message: 'Pengelolaan akun dan role hanya dapat diberikan kepada role SUPERADMIN.' });
     }
 
     const updatedRole = await prisma.role.update({

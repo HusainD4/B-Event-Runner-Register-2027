@@ -10,9 +10,41 @@ import routes from './routes/index';
 // Import Middleware Keamanan Tambahan & Jaring Pengaman
 import { setSecurityHeaders } from './middlewares/security';
 import { globalErrorHandler, notFoundHandler } from './middlewares/errorHandler';
+import { emitDataChanged } from './sockets';
 
 // Inisialisasi Aplikasi Express
 const app = express();
+
+const getChangedTopics = (path: string): string[] => {
+  path = path.replace(/^\/api(?=\/|$)/, '');
+  if (path.startsWith('/webhook') || path.startsWith('/register') || path.startsWith('/orders/')) {
+    return ['dashboard', 'orders', 'participants', 'racepack', 'notif-logs', 'logs', 'public:events'];
+  }
+  if (path.includes('/bib') || path.includes('/generate-bib')) return ['bib-settings', 'participants'];
+  if (path.includes('/events') || path.includes('/benefits') || path.includes('/jerseys')) {
+    return ['events', 'dashboard', 'public:events'];
+  }
+  if (path.includes('/participants')) return ['participants', 'racepack', 'dashboard', 'logs'];
+  if (path.includes('/orders') || path.includes('/finance')) return ['orders', 'dashboard', 'participants', 'logs'];
+  if (path.includes('/racepack')) return ['racepack', 'participants', 'dashboard', 'logs'];
+  if (path.includes('/settings/countdown')) return ['countdown', 'public:countdown', 'events', 'public:events'];
+  if (path.includes('/settings/website')) return ['cms', 'public:cms'];
+  if (path.includes('/routes')) return ['routes', 'public:routes'];
+  if (path.includes('/notifications')) return ['notifications', 'notif-logs', 'whatsapp-web'];
+  if (path.includes('/users-management') || path.includes('/roles') || path.includes('/admin/users')) return ['admins', 'logs'];
+  return ['dashboard', 'logs'];
+};
+
+const emitChangesAfterSuccessfulMutation: express.RequestHandler = (req, res, next) => {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method.toUpperCase())) return next();
+
+  res.on('finish', () => {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      emitDataChanged(getChangedTopics(req.path));
+    }
+  });
+  next();
+};
 
 // ==============================================================
 // 1. MIDDLEWARE KEAMANAN & PARSER (HARUS PALING ATAS)
@@ -47,6 +79,7 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Mendaftarkan terminal pusat rute kita dengan prefiks /api
+app.use('/api', emitChangesAfterSuccessfulMutation);
 app.use('/api', routes);
 
 // ==============================================================

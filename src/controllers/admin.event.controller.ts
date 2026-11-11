@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
+import { getEventRegistrationStatus } from '../utils/event-timing';
 
 const createEventSchema = z.object({
   ticketName: z.string().min(3, 'Nama tiket minimal 3 karakter'),
@@ -11,6 +12,7 @@ const createEventSchema = z.object({
   ticketImage: z.string().url('URL gambar tiket tidak valid').nullable().optional(),
   medalImage: z.string().url('URL gambar medali tidak valid').nullable().optional(),
   eventDate: z.string().datetime().nullable().optional().or(z.string().nullable().optional()),
+  followGlobalTimer: z.boolean().optional(),
   isClosed: z.boolean().optional(),
   benefits: z.array(z.object({
     name: z.string().min(2),
@@ -39,6 +41,7 @@ const updateEventSchema = z.object({
   ticketImage: z.string().url().nullable().optional(),
   medalImage: z.string().url().nullable().optional(),
   eventDate: z.string().nullable().optional(),
+  followGlobalTimer: z.boolean().optional(),
   isClosed: z.boolean().optional(),
 });
 
@@ -49,10 +52,16 @@ const benefitSchema = z.object({
 });
 
 const jerseySchema = z.object({
-  name: z.string().min(2, 'Nama jersey minimal 2 karakter'),
-  type: z.string().min(2, 'Tipe jersey minimal 2 karakter'),
-  sizes: z.array(z.string()).min(1, 'Minimal satu pilihan ukuran'),
-  image: z.string().url().nullable().optional(),
+  name: z.string().trim().min(2, 'Nama jersey minimal 2 karakter'),
+  type: z.string().trim().min(2, 'Tipe jersey minimal 2 karakter'),
+  sizes: z.array(z.string().trim().min(1).max(24)).min(1, 'Minimal satu pilihan ukuran').max(20),
+  image: z.string().url().refine(value => {
+    try {
+      return ['http:', 'https:'].includes(new URL(value).protocol);
+    } catch {
+      return false;
+    }
+  }).nullable().optional(),
   eventId: z.string().uuid('Event ID tidak valid').optional(),
 });
 
@@ -62,6 +71,18 @@ const bibConfigSchema = z.object({
   startNumber: z.number().int().min(1).default(1),
   suffix: z.string().nullable().optional(),
 });
+
+async function getGlobalCountdownDate(): Promise<Date | null> {
+  const settings = await prisma.appSetting.findMany({
+    where: { key: { in: ['EVENT_COUNTDOWN_DATE', 'event_countdown_date'] } },
+    select: { key: true, value: true }
+  });
+  const setting = settings.find(item => item.key === 'EVENT_COUNTDOWN_DATE')
+    || settings.find(item => item.key === 'event_countdown_date');
+  if (!setting?.value) return null;
+  const date = new Date(setting.value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 // ==========================================
 // 1. EVENT CRUD
@@ -83,9 +104,10 @@ export const getAdminEvents = async (req: AuthenticatedRequest, res: Response): 
 
     const formatted = events.map((event) => ({
       ...event,
+      ...getEventRegistrationStatus(event.eventDate, event.isClosed),
       price: Number(event.price),
       registeredCount: event._count?.participants || 0,
-      remainingStock: Math.max(0, event.stock - (event._count?.participants || 0)),
+      remainingStock: Math.max(0, event.stock),
     }));
 
     return res.status(200).json({ status: 'success', data: formatted });
@@ -116,9 +138,10 @@ export const getAdminEventById = async (req: AuthenticatedRequest, res: Response
       status: 'success',
       data: {
         ...event,
+        ...getEventRegistrationStatus(event.eventDate, event.isClosed),
         price: Number(event.price),
         registeredCount: event._count?.participants || 0,
-        remainingStock: Math.max(0, event.stock - (event._count?.participants || 0)),
+        remainingStock: Math.max(0, event.stock),
       },
     });
   } catch (error) {
@@ -137,7 +160,17 @@ export const createEvent = async (req: AuthenticatedRequest, res: Response): Pro
       });
     }
 
-    const { ticketName, category, stock, price, ticketImage, medalImage, benefits, jerseys, bibConfig } = parseResult.data;
+    const {
+      ticketName, category, stock, price, ticketImage, medalImage, benefits, jerseys, bibConfig,
+      eventDate, followGlobalTimer = false
+    } = parseResult.data;
+    const globalCountdownDate = followGlobalTimer ? await getGlobalCountdownDate() : null;
+    if (followGlobalTimer && !globalCountdownDate) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Tanggal countdown acara belum diatur. Atur timer terlebih dahulu sebelum mengaktifkan ikuti timer.'
+      });
+    }
 
     const newEvent = await prisma.event.create({
       data: {
@@ -147,6 +180,8 @@ export const createEvent = async (req: AuthenticatedRequest, res: Response): Pro
         price,
         ticketImage: ticketImage || null,
         medalImage: medalImage || null,
+        eventDate: followGlobalTimer ? globalCountdownDate : (eventDate ? new Date(eventDate) : null),
+        followGlobalTimer,
         benefits: benefits && benefits.length > 0 ? { create: benefits } : undefined,
         jerseys: jerseys && jerseys.length > 0 ? { create: jerseys } : undefined,
         bibConfig: bibConfig ? { create: bibConfig } : undefined,
@@ -197,7 +232,16 @@ export const updateEvent = async (req: AuthenticatedRequest, res: Response): Pro
     }
 
     const updateData: any = { ...parseResult.data };
-    if (updateData.eventDate !== undefined) {
+    if (updateData.followGlobalTimer === true) {
+      const globalCountdownDate = await getGlobalCountdownDate();
+      if (!globalCountdownDate && !existing.followGlobalTimer) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Tanggal countdown acara belum diatur. Atur timer terlebih dahulu sebelum mengaktifkan ikuti timer.'
+        });
+      }
+      updateData.eventDate = globalCountdownDate;
+    } else if (updateData.eventDate !== undefined) {
       updateData.eventDate = updateData.eventDate ? new Date(updateData.eventDate) : null;
     }
 
@@ -220,7 +264,11 @@ export const updateEvent = async (req: AuthenticatedRequest, res: Response): Pro
     return res.status(200).json({
       status: 'success',
       message: 'Event berhasil diperbarui.',
-      data: { ...updatedEvent, price: Number(updatedEvent.price) },
+      data: {
+        ...updatedEvent,
+        ...getEventRegistrationStatus(updatedEvent.eventDate, updatedEvent.isClosed),
+        price: Number(updatedEvent.price),
+      },
     });
   } catch (error) {
     console.error('🚨 [UPDATE EVENT ERROR]:', error);
@@ -369,13 +417,25 @@ export const createJersey = async (req: AuthenticatedRequest, res: Response): Pr
     if (!eventId) {
       return res.status(400).json({ status: 'error', message: 'Event ID wajib disertakan.' });
     }
+    const event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
+    if (!event) return res.status(404).json({ status: 'error', message: 'Kategori event tidak ditemukan.' });
 
     const jersey = await prisma.jersey.create({
-      data: { eventId, name, type, sizes, image },
+      data: { eventId, name: name.trim(), type: type.trim(), sizes: [...new Set(sizes.map(size => size.trim()))], image: image || null },
     });
 
+    await prisma.log.create({
+      data: {
+        action: 'JERSEY_CREATE',
+        description: `Admin menambahkan jersey "${jersey.name}" (${jersey.type}).`,
+        adminId: req.admin?.adminId,
+        entityType: 'Jersey',
+        entityId: jersey.id,
+      },
+    }).catch(() => null);
     return res.status(201).json({ status: 'success', message: 'Jersey berhasil dibuat.', data: jersey });
   } catch (error) {
+    console.error('🚨 [CREATE JERSEY ERROR]:', error);
     return res.status(500).json({ status: 'error', message: 'Gagal membuat jersey.' });
   }
 };
@@ -388,13 +448,44 @@ export const updateJersey = async (req: AuthenticatedRequest, res: Response): Pr
       return res.status(400).json({ status: 'error', message: 'Validasi jersey gagal.' });
     }
 
+    const updateData = {
+      ...parseResult.data,
+      ...(parseResult.data.name !== undefined ? { name: parseResult.data.name.trim() } : {}),
+      ...(parseResult.data.type !== undefined ? { type: parseResult.data.type.trim() } : {}),
+      ...(parseResult.data.sizes !== undefined ? { sizes: [...new Set(parseResult.data.sizes.map(size => size.trim()))] } : {}),
+    };
+    const existing = await prisma.jersey.findUnique({ where: { id }, select: { id: true, eventId: true } });
+    if (!existing) return res.status(404).json({ status: 'error', message: 'Jersey tidak ditemukan.' });
+    if (updateData.eventId && !await prisma.event.findUnique({ where: { id: updateData.eventId }, select: { id: true } })) {
+      return res.status(404).json({ status: 'error', message: 'Kategori event tidak ditemukan.' });
+    }
+    if (updateData.eventId && updateData.eventId !== existing.eventId) {
+      const participantCount = await prisma.participant.count({ where: { jerseyId: id } });
+      if (participantCount > 0) {
+        return res.status(409).json({
+          status: 'error',
+          message: 'Jersey sudah dipilih peserta dan tidak dapat dipindahkan ke kategori lain.',
+        });
+      }
+    }
+
     const updated = await prisma.jersey.update({
       where: { id },
-      data: parseResult.data,
+      data: updateData,
     });
 
+    await prisma.log.create({
+      data: {
+        action: 'JERSEY_UPDATE',
+        description: `Admin memperbarui jersey "${updated.name}" (${updated.type}).`,
+        adminId: req.admin?.adminId,
+        entityType: 'Jersey',
+        entityId: updated.id,
+      },
+    }).catch(() => null);
     return res.status(200).json({ status: 'success', message: 'Jersey berhasil diperbarui.', data: updated });
   } catch (error) {
+    console.error('🚨 [UPDATE JERSEY ERROR]:', error);
     return res.status(500).json({ status: 'error', message: 'Gagal memperbarui jersey.' });
   }
 };
@@ -402,9 +493,28 @@ export const updateJersey = async (req: AuthenticatedRequest, res: Response): Pr
 export const deleteJersey = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const id = req.params.id as string;
+    const participantCount = await prisma.participant.count({ where: { jerseyId: id } });
+    if (participantCount > 0) {
+      return res.status(409).json({
+        status: 'error',
+        message: 'Jersey sudah dipilih peserta dan tidak dapat dihapus. Nonaktifkan atau ubah detail jersey agar data peserta tetap utuh.',
+      });
+    }
+    const jersey = await prisma.jersey.findUnique({ where: { id }, select: { id: true, name: true, type: true } });
+    if (!jersey) return res.status(404).json({ status: 'error', message: 'Jersey tidak ditemukan.' });
     await prisma.jersey.delete({ where: { id } });
+    await prisma.log.create({
+      data: {
+        action: 'JERSEY_DELETE',
+        description: `Admin menghapus jersey "${jersey.name}" (${jersey.type}).`,
+        adminId: req.admin?.adminId,
+        entityType: 'Jersey',
+        entityId: jersey.id,
+      },
+    }).catch(() => null);
     return res.status(200).json({ status: 'success', message: 'Jersey berhasil dihapus.' });
   } catch (error) {
+    console.error('🚨 [DELETE JERSEY ERROR]:', error);
     return res.status(500).json({ status: 'error', message: 'Gagal menghapus jersey.' });
   }
 };

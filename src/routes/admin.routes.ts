@@ -25,6 +25,7 @@ import {
   updateAdmin,
   deleteAdmin,
 } from '../controllers/admin.rbac.controller';
+import { forceLogoutAdmin, getRoleMonitoring } from '../controllers/admin.monitoring.controller';
 
 import {
   getPublicCountdownSettings,
@@ -141,17 +142,17 @@ router.get('/auth/me', getAdminProfile);
 router.put('/auth/change-password', changeAdminPassword);
 
 // --- Ringkasan Dashboard & Keuangan ---
-router.get('/stats', getAdminStats);
-router.get('/finance/summary', requirePermission('finance:read', 'orders:read', 'page:orders'), getFinancialSummary);
-router.post('/finance/sync-midtrans', syncAllMidtransOrders);
+router.get('/stats', requirePermission('page:dashboard'), getAdminStats);
+router.get('/finance/summary', requirePermission('finance:read'), getFinancialSummary);
+router.post('/finance/sync-midtrans', requirePermission('finance:read'), syncAllMidtransOrders);
 
 // --- Pengaturan Global Countdown & Tutup Pendaftaran ---
-router.get('/settings/countdown', getPublicCountdownSettings);
-router.put('/settings/countdown', requirePermission('events:update'), updateAdminCountdownSettings);
+router.get('/settings/countdown', requirePermission('countdown:manage', 'page:countdown', 'events:read'), getPublicCountdownSettings);
+router.put('/settings/countdown', requirePermission('countdown:manage'), updateAdminCountdownSettings);
 
 // --- Pengaturan CMS Konten Website, Google Maps, Gambar Banner ---
-router.get('/settings/website', getWebsiteSettings);
-router.put('/settings/website', requirePermission('events:update'), updateWebsiteSettings);
+router.get('/settings/website', requirePermission('cms:manage', 'page:cms', 'routes:read', 'routes:manage'), getWebsiteSettings);
+router.put('/settings/website', requirePermission('cms:manage', 'routes:manage'), updateWebsiteSettings);
 
 // ==============================================================
 // 3. SUPERADMIN ONLY (ROLES, PERMISSIONS & ADMIN ACCOUNTS)
@@ -160,6 +161,8 @@ router.put('/settings/website', requirePermission('events:update'), updateWebsit
 router.get('/roles/permissions', requireSuperAdmin, getSystemPermissions);
 
 // Manajemen Roles
+router.get('/role-monitoring', requireSuperAdmin, getRoleMonitoring);
+router.post('/role-monitoring/:roleId/admins/:adminId/force-logout', requireSuperAdmin, forceLogoutAdmin);
 router.get('/roles', requireSuperAdmin, getAllRoles);
 router.post('/roles/reset-defaults', requireSuperAdmin, resetDefaultRoles);
 router.get('/roles/:id', requireSuperAdmin, getRoleById);
@@ -230,10 +233,10 @@ router.delete('/users/:id', requirePermission('users:delete'), deleteUser);
 // ==============================================================
 // 9. CHECKPOINTS & TITIK KUMPUL RUTE LARI CRUD
 // ==============================================================
-router.get('/routes/points', requirePermission('events:update'), getRoutePoints);
-router.post('/routes/points', requirePermission('events:update'), createRoutePoint);
-router.put('/routes/points/:id', requirePermission('events:update'), updateRoutePoint);
-router.delete('/routes/points/:id', requirePermission('events:update'), deleteRoutePoint);
+router.get('/routes/points', requirePermission('routes:read', 'routes:manage'), getRoutePoints);
+router.post('/routes/points', requirePermission('routes:manage'), createRoutePoint);
+router.put('/routes/points/:id', requirePermission('routes:manage'), updateRoutePoint);
+router.delete('/routes/points/:id', requirePermission('routes:manage'), deleteRoutePoint);
 
 // ==============================================================
 // 10. AUDIT LOGS
@@ -243,46 +246,46 @@ router.get('/logs', requirePermission('logs:read'), getAuditLogs);
 // ==============================================================
 // 11. NOTIFIKASI & OTOMASI WHATSAPP / EMAIL
 // ==============================================================
-router.get('/notifications/settings', requirePermission('events:update'), getNotificationSettings);
-router.put('/notifications/settings', requirePermission('events:update'), updateNotificationSettings);
-router.post('/notifications/test', requirePermission('events:update'), sendTestNotification);
+router.get('/notifications/settings', requirePermission('notifications:manage'), getNotificationSettings);
+router.put('/notifications/settings', requirePermission('notifications:manage'), updateNotificationSettings);
+router.post('/notifications/test', requirePermission('notifications:manage'), sendTestNotification);
 
 // WhatsApp Web Session Endpoints
-router.get('/notifications/whatsapp/session', requirePermission('events:update'), getWhatsAppSessionStatus);
-router.post('/notifications/whatsapp/qr', requirePermission('events:update'), generateWhatsAppQr);
-router.post('/notifications/whatsapp/disconnect', requirePermission('events:update'), disconnectWhatsAppSession);
-router.post('/notifications/whatsapp/send-direct', requirePermission('events:update'), sendWhatsAppDirectMessage);
+router.get('/notifications/whatsapp/session', requirePermission('whatsapp:session'), getWhatsAppSessionStatus);
+router.post('/notifications/whatsapp/qr', requirePermission('whatsapp:session'), generateWhatsAppQr);
+router.post('/notifications/whatsapp/disconnect', requirePermission('whatsapp:session'), disconnectWhatsAppSession);
+router.post('/notifications/whatsapp/send-direct', requirePermission('whatsapp:chat'), sendWhatsAppDirectMessage);
 
 // Log Notifikasi & Dispatch Manual
-router.get('/notifications/logs', requirePermission('events:update'), getNotificationLogs);
-router.post('/notifications/dispatch-single', requirePermission('events:update'), dispatchSingleNotification);
-router.post('/notifications/dispatch-batch', requirePermission('events:update'), dispatchBatchNotifications);
+router.get('/notifications/logs', requirePermission('notifications:read'), getNotificationLogs);
+router.post('/notifications/dispatch-single', requirePermission('notifications:dispatch'), dispatchSingleNotification);
+router.post('/notifications/dispatch-batch', requirePermission('notifications:dispatch'), dispatchBatchNotifications);
 
 // ==============================================================
 // 12. RACEPACK COLLECTION & CHECK-IN (RPC)
 // ==============================================================
-router.get('/racepack/verify/:code', requirePermission('participants:read', 'page:racepack', 'page:participants'), verifyRacepackCode);
-router.get('/racepack/queue', requirePermission('participants:read', 'page:racepack-view', 'page:racepack'), getRacepackQueue);
-router.post('/racepack/queue', requirePermission('participants:update', 'page:racepack', 'page:racepack-view'), enqueueRacepackCheckin);
-router.post('/racepack/checkin', requirePermission('participants:update', 'page:racepack', 'page:participants'), checkinRacepack);
-router.post('/racepack/batch-checkin', requirePermission('participants:update', 'page:racepack', 'page:participants'), batchCheckinRacepack);
-router.post('/racepack/revert', requirePermission('participants:update', 'page:racepack', 'page:participants'), revertRacepack);
-router.get('/racepack/stats', requirePermission('participants:read', 'page:racepack', 'page:participants'), getRacepackStats);
+router.get('/racepack/verify/:code', requirePermission('participants:read'), verifyRacepackCode);
+router.get('/racepack/queue', requirePermission('participants:read'), getRacepackQueue);
+router.post('/racepack/queue', requirePermission('racepack:checkin'), enqueueRacepackCheckin);
+router.post('/racepack/checkin', requirePermission('racepack:checkin'), checkinRacepack);
+router.post('/racepack/batch-checkin', requirePermission('racepack:checkin'), batchCheckinRacepack);
+router.post('/racepack/revert', requirePermission('racepack:checkin'), revertRacepack);
+router.get('/racepack/stats', requirePermission('participants:read'), getRacepackStats);
 
 // ==============================================================
 // 13. PENGATURAN BIB, QR CODE & PETUNJUK RACEPACK
 // ==============================================================
-router.get('/bib/settings', requirePermission('participants:read', 'events:read', 'page:bib-settings'), getAdminBibSettings);
-router.put('/bib/settings', requirePermission('participants:update', 'events:update', 'page:bib-settings'), saveAdminBibSettings);
-router.post('/bib/bulk-generate', requirePermission('participants:update', 'events:update', 'page:bib-settings'), triggerBulkGenerateBib);
+router.get('/bib/settings', requirePermission('bib:manage'), getAdminBibSettings);
+router.put('/bib/settings', requirePermission('bib:manage'), saveAdminBibSettings);
+router.post('/bib/bulk-generate', requirePermission('bib:manage'), triggerBulkGenerateBib);
 
-router.get('/settings/qr', requirePermission('events:read', 'page:bib-settings'), getAdminQrSettings);
-router.put('/settings/qr', requirePermission('events:update', 'page:bib-settings'), saveAdminQrSettings);
+router.get('/settings/qr', requirePermission('bib:manage'), getAdminQrSettings);
+router.put('/settings/qr', requirePermission('bib:manage'), saveAdminQrSettings);
 
-router.get('/settings/racepack-instructions', requirePermission('events:read', 'page:bib-settings'), getRacepackInstructions);
-router.put('/settings/racepack-instructions', requirePermission('events:update', 'page:bib-settings'), saveRacepackInstructions);
+router.get('/settings/racepack-instructions', requirePermission('bib:manage'), getRacepackInstructions);
+router.put('/settings/racepack-instructions', requirePermission('bib:manage'), saveRacepackInstructions);
 
-router.get('/settings/payment-fee', requirePermission('events:read', 'page:bib-settings'), getPaymentAndFeeSettings);
-router.put('/settings/payment-fee', requirePermission('events:update', 'page:bib-settings'), savePaymentAndFeeSettings);
+router.get('/settings/payment-fee', requirePermission('bib:manage'), getPaymentAndFeeSettings);
+router.put('/settings/payment-fee', requirePermission('bib:manage'), savePaymentAndFeeSettings);
 
 export default router;

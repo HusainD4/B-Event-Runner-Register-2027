@@ -1,6 +1,6 @@
 import prisma from '../config/database';
 import { coreApi } from '../config/midtrans';
-import { emitStockUpdate } from '../sockets/index';
+import { emitDataChanged, emitStockUpdate } from '../sockets/index';
 
 const EXPIRY_KEY_PREFIX = 'payment_expiry_';
 
@@ -39,11 +39,12 @@ export async function expirePendingOrders(): Promise<void> {
         const status = await coreApi.transaction.status(midtransOrderId);
         remoteStatus = String(status?.transaction_status || '').toLowerCase();
         if (remoteStatus === 'settlement' || remoteStatus === 'capture') {
-          await prisma.order.updateMany({
+          const updated = await prisma.order.updateMany({
             where: { id: order.id, status: 'PENDING' },
             data: { status: remoteStatus === 'capture' ? 'CAPTURE' : 'SETTLEMENT' },
           });
           await prisma.appSetting.deleteMany({ where: { key: `${EXPIRY_KEY_PREFIX}${order.id}` } });
+          if (updated.count > 0) emitDataChanged(['dashboard', 'orders', 'participants', 'logs']);
           continue;
         }
 
@@ -101,6 +102,7 @@ export async function expirePendingOrders(): Promise<void> {
       if (expired) {
         await prisma.appSetting.deleteMany({ where: { key: `${EXPIRY_KEY_PREFIX}${order.id}` } });
         for (const event of restoredStock) emitStockUpdate(event.eventId, event.stock);
+        emitDataChanged(['dashboard', 'orders', 'participants', 'racepack', 'logs', 'public:events']);
       }
     } catch (error) {
       console.error(`[ORDER EXPIRY] Gagal menyimpan pembatalan untuk order ${order.id}:`, error);

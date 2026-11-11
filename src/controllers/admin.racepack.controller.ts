@@ -4,6 +4,7 @@ import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import { decryptQrPayload } from '../services/qr-crypto.service';
 import { getGlobalBibSettings, assignBibToParticipant } from '../services/bib.service';
+import { emitDataChanged } from '../sockets';
 
 const checkinSchema = z.object({
   participantId: z.string().min(1, 'Participant ID wajib diisi'),
@@ -438,6 +439,7 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
 
     checkinsMap[participant.id] = checkinData;
     await saveRacepackCheckinsMap(checkinsMap);
+    emitDataChanged(['dashboard', 'racepack']);
 
     // Audit log
     await prisma.log.create({
@@ -575,6 +577,7 @@ export const revertRacepack = async (req: AuthenticatedRequest, res: Response): 
     if (checkinsMap[participantId]) {
       delete checkinsMap[participantId];
       await saveRacepackCheckinsMap(checkinsMap);
+      emitDataChanged(['dashboard', 'racepack']);
     }
 
     // Audit log

@@ -10,6 +10,7 @@ import path from 'path';
 import fs from 'fs';
 import pino from 'pino';
 import prisma from '../config/database';
+import { emitAdminEvent } from '../sockets';
 
 export interface WhatsAppSessionState {
   status: 'DISCONNECTED' | 'SCAN_QR' | 'CONNECTED';
@@ -162,6 +163,13 @@ class WhatsAppSessionService {
             this.currentQrDataUrl = qrDataUrl;
             this.currentStatus = 'SCAN_QR';
             this.reconnectAttempts = 0;
+            emitAdminEvent('admin:whatsapp_session', {
+              status: 'SCAN_QR',
+              qrCodeUrl: qrDataUrl,
+              connectedNumber: null,
+              deviceName: 'WhatsApp Web (Backend Direct)',
+              syncedAt: new Date().toISOString(),
+            });
 
             // Segera kirimkan ke semua request yang sedang menunggu
             while (this.qrWaiters.length > 0) {
@@ -192,6 +200,13 @@ class WhatsAppSessionService {
           this.connectedNumber = phoneNum ? `+${phoneNum}` : '+628xxxxxxxx';
           this.deviceName = 'WhatsApp Web (Backend Direct / macOS)';
           this.syncedAt = new Date().toISOString();
+          emitAdminEvent('admin:whatsapp_session', {
+            status: 'CONNECTED',
+            qrCodeUrl: null,
+            connectedNumber: this.connectedNumber,
+            deviceName: this.deviceName,
+            syncedAt: this.syncedAt,
+          });
 
           const connectedSettings = [
             { key: 'wa_session_status', value: 'CONNECTED' },
@@ -241,6 +256,13 @@ class WhatsAppSessionService {
             await this.disconnectSession();
           } else {
             this.currentStatus = 'DISCONNECTED';
+            emitAdminEvent('admin:whatsapp_session', {
+              status: 'DISCONNECTED',
+              qrCodeUrl: null,
+              connectedNumber: null,
+              deviceName: null,
+              syncedAt: null,
+            });
 
             if (this.qrWaiters.length > 0) {
               this.reconnectAttempts++;
@@ -420,6 +442,13 @@ class WhatsAppSessionService {
     this.syncedAt = null;
     this.isConnecting = false;
     this.reconnectAttempts = 0;
+    emitAdminEvent('admin:whatsapp_session', {
+      status: 'DISCONNECTED',
+      qrCodeUrl: null,
+      connectedNumber: null,
+      deviceName: null,
+      syncedAt: null,
+    });
 
     if (fs.existsSync(AUTH_DIR)) {
       try {

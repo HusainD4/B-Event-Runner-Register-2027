@@ -2957,6 +2957,7 @@ export namespace Prisma {
     ticketImage: string | null
     medalImage: string | null
     eventDate: Date | null
+    followGlobalTimer: boolean | null
     isClosed: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -2971,6 +2972,7 @@ export namespace Prisma {
     ticketImage: string | null
     medalImage: string | null
     eventDate: Date | null
+    followGlobalTimer: boolean | null
     isClosed: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -2985,6 +2987,7 @@ export namespace Prisma {
     ticketImage: number
     medalImage: number
     eventDate: number
+    followGlobalTimer: number
     isClosed: number
     createdAt: number
     updatedAt: number
@@ -3011,6 +3014,7 @@ export namespace Prisma {
     ticketImage?: true
     medalImage?: true
     eventDate?: true
+    followGlobalTimer?: true
     isClosed?: true
     createdAt?: true
     updatedAt?: true
@@ -3025,6 +3029,7 @@ export namespace Prisma {
     ticketImage?: true
     medalImage?: true
     eventDate?: true
+    followGlobalTimer?: true
     isClosed?: true
     createdAt?: true
     updatedAt?: true
@@ -3039,6 +3044,7 @@ export namespace Prisma {
     ticketImage?: true
     medalImage?: true
     eventDate?: true
+    followGlobalTimer?: true
     isClosed?: true
     createdAt?: true
     updatedAt?: true
@@ -3140,6 +3146,7 @@ export namespace Prisma {
     ticketImage: string | null
     medalImage: string | null
     eventDate: Date | null
+    followGlobalTimer: boolean
     isClosed: boolean
     createdAt: Date
     updatedAt: Date
@@ -3173,6 +3180,7 @@ export namespace Prisma {
     ticketImage?: boolean
     medalImage?: boolean
     eventDate?: boolean
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -3193,6 +3201,7 @@ export namespace Prisma {
     ticketImage?: boolean
     medalImage?: boolean
     eventDate?: boolean
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -3223,6 +3232,7 @@ export namespace Prisma {
       ticketImage: string | null
       medalImage: string | null
       eventDate: Date | null
+      followGlobalTimer: boolean
       isClosed: boolean
       createdAt: Date
       updatedAt: Date
@@ -3607,6 +3617,7 @@ export namespace Prisma {
     readonly ticketImage: FieldRef<"Event", 'String'>
     readonly medalImage: FieldRef<"Event", 'String'>
     readonly eventDate: FieldRef<"Event", 'DateTime'>
+    readonly followGlobalTimer: FieldRef<"Event", 'Boolean'>
     readonly isClosed: FieldRef<"Event", 'Boolean'>
     readonly createdAt: FieldRef<"Event", 'DateTime'>
     readonly updatedAt: FieldRef<"Event", 'DateTime'>
@@ -10678,8 +10689,18 @@ export namespace Prisma {
 
   export type AggregateAdmin = {
     _count: AdminCountAggregateOutputType | null
+    _avg: AdminAvgAggregateOutputType | null
+    _sum: AdminSumAggregateOutputType | null
     _min: AdminMinAggregateOutputType | null
     _max: AdminMaxAggregateOutputType | null
+  }
+
+  export type AdminAvgAggregateOutputType = {
+    tokenVersion: number | null
+  }
+
+  export type AdminSumAggregateOutputType = {
+    tokenVersion: number | null
   }
 
   export type AdminMinAggregateOutputType = {
@@ -10690,6 +10711,7 @@ export namespace Prisma {
     fullName: string | null
     roleId: string | null
     isActive: boolean | null
+    tokenVersion: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -10702,6 +10724,7 @@ export namespace Prisma {
     fullName: string | null
     roleId: string | null
     isActive: boolean | null
+    tokenVersion: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -10714,11 +10737,20 @@ export namespace Prisma {
     fullName: number
     roleId: number
     isActive: number
+    tokenVersion: number
     createdAt: number
     updatedAt: number
     _all: number
   }
 
+
+  export type AdminAvgAggregateInputType = {
+    tokenVersion?: true
+  }
+
+  export type AdminSumAggregateInputType = {
+    tokenVersion?: true
+  }
 
   export type AdminMinAggregateInputType = {
     id?: true
@@ -10728,6 +10760,7 @@ export namespace Prisma {
     fullName?: true
     roleId?: true
     isActive?: true
+    tokenVersion?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -10740,6 +10773,7 @@ export namespace Prisma {
     fullName?: true
     roleId?: true
     isActive?: true
+    tokenVersion?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -10752,6 +10786,7 @@ export namespace Prisma {
     fullName?: true
     roleId?: true
     isActive?: true
+    tokenVersion?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -10795,6 +10830,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: AdminAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AdminSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: AdminMinAggregateInputType
@@ -10825,6 +10872,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: AdminCountAggregateInputType | true
+    _avg?: AdminAvgAggregateInputType
+    _sum?: AdminSumAggregateInputType
     _min?: AdminMinAggregateInputType
     _max?: AdminMaxAggregateInputType
   }
@@ -10837,9 +10886,12 @@ export namespace Prisma {
     fullName: string
     roleId: string
     isActive: boolean
+    tokenVersion: number
     createdAt: Date
     updatedAt: Date
     _count: AdminCountAggregateOutputType | null
+    _avg: AdminAvgAggregateOutputType | null
+    _sum: AdminSumAggregateOutputType | null
     _min: AdminMinAggregateOutputType | null
     _max: AdminMaxAggregateOutputType | null
   }
@@ -10866,6 +10918,7 @@ export namespace Prisma {
     fullName?: boolean
     roleId?: boolean
     isActive?: boolean
+    tokenVersion?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     role?: boolean | RoleDefaultArgs<ExtArgs>
@@ -10882,6 +10935,7 @@ export namespace Prisma {
     fullName?: boolean
     roleId?: boolean
     isActive?: boolean
+    tokenVersion?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -10906,6 +10960,7 @@ export namespace Prisma {
       fullName: string
       roleId: string
       isActive: boolean
+      tokenVersion: number
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["admin"]>
@@ -11286,6 +11341,7 @@ export namespace Prisma {
     readonly fullName: FieldRef<"Admin", 'String'>
     readonly roleId: FieldRef<"Admin", 'String'>
     readonly isActive: FieldRef<"Admin", 'Boolean'>
+    readonly tokenVersion: FieldRef<"Admin", 'Int'>
     readonly createdAt: FieldRef<"Admin", 'DateTime'>
     readonly updatedAt: FieldRef<"Admin", 'DateTime'>
   }
@@ -13419,6 +13475,7 @@ export namespace Prisma {
     ticketImage: 'ticketImage',
     medalImage: 'medalImage',
     eventDate: 'eventDate',
+    followGlobalTimer: 'followGlobalTimer',
     isClosed: 'isClosed',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -13542,6 +13599,7 @@ export namespace Prisma {
     fullName: 'fullName',
     roleId: 'roleId',
     isActive: 'isActive',
+    tokenVersion: 'tokenVersion',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -13765,6 +13823,7 @@ export namespace Prisma {
     ticketImage?: StringNullableFilter<"Event"> | string | null
     medalImage?: StringNullableFilter<"Event"> | string | null
     eventDate?: DateTimeNullableFilter<"Event"> | Date | string | null
+    followGlobalTimer?: BoolFilter<"Event"> | boolean
     isClosed?: BoolFilter<"Event"> | boolean
     createdAt?: DateTimeFilter<"Event"> | Date | string
     updatedAt?: DateTimeFilter<"Event"> | Date | string
@@ -13783,6 +13842,7 @@ export namespace Prisma {
     ticketImage?: SortOrderInput | SortOrder
     medalImage?: SortOrderInput | SortOrder
     eventDate?: SortOrderInput | SortOrder
+    followGlobalTimer?: SortOrder
     isClosed?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -13804,6 +13864,7 @@ export namespace Prisma {
     ticketImage?: StringNullableFilter<"Event"> | string | null
     medalImage?: StringNullableFilter<"Event"> | string | null
     eventDate?: DateTimeNullableFilter<"Event"> | Date | string | null
+    followGlobalTimer?: BoolFilter<"Event"> | boolean
     isClosed?: BoolFilter<"Event"> | boolean
     createdAt?: DateTimeFilter<"Event"> | Date | string
     updatedAt?: DateTimeFilter<"Event"> | Date | string
@@ -13822,6 +13883,7 @@ export namespace Prisma {
     ticketImage?: SortOrderInput | SortOrder
     medalImage?: SortOrderInput | SortOrder
     eventDate?: SortOrderInput | SortOrder
+    followGlobalTimer?: SortOrder
     isClosed?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -13844,6 +13906,7 @@ export namespace Prisma {
     ticketImage?: StringNullableWithAggregatesFilter<"Event"> | string | null
     medalImage?: StringNullableWithAggregatesFilter<"Event"> | string | null
     eventDate?: DateTimeNullableWithAggregatesFilter<"Event"> | Date | string | null
+    followGlobalTimer?: BoolWithAggregatesFilter<"Event"> | boolean
     isClosed?: BoolWithAggregatesFilter<"Event"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Event"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Event"> | Date | string
@@ -14414,6 +14477,7 @@ export namespace Prisma {
     fullName?: StringFilter<"Admin"> | string
     roleId?: StringFilter<"Admin"> | string
     isActive?: BoolFilter<"Admin"> | boolean
+    tokenVersion?: IntFilter<"Admin"> | number
     createdAt?: DateTimeFilter<"Admin"> | Date | string
     updatedAt?: DateTimeFilter<"Admin"> | Date | string
     role?: XOR<RoleRelationFilter, RoleWhereInput>
@@ -14428,6 +14492,7 @@ export namespace Prisma {
     fullName?: SortOrder
     roleId?: SortOrder
     isActive?: SortOrder
+    tokenVersion?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     role?: RoleOrderByWithRelationInput
@@ -14445,6 +14510,7 @@ export namespace Prisma {
     fullName?: StringFilter<"Admin"> | string
     roleId?: StringFilter<"Admin"> | string
     isActive?: BoolFilter<"Admin"> | boolean
+    tokenVersion?: IntFilter<"Admin"> | number
     createdAt?: DateTimeFilter<"Admin"> | Date | string
     updatedAt?: DateTimeFilter<"Admin"> | Date | string
     role?: XOR<RoleRelationFilter, RoleWhereInput>
@@ -14459,11 +14525,14 @@ export namespace Prisma {
     fullName?: SortOrder
     roleId?: SortOrder
     isActive?: SortOrder
+    tokenVersion?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: AdminCountOrderByAggregateInput
+    _avg?: AdminAvgOrderByAggregateInput
     _max?: AdminMaxOrderByAggregateInput
     _min?: AdminMinOrderByAggregateInput
+    _sum?: AdminSumOrderByAggregateInput
   }
 
   export type AdminScalarWhereWithAggregatesInput = {
@@ -14477,6 +14546,7 @@ export namespace Prisma {
     fullName?: StringWithAggregatesFilter<"Admin"> | string
     roleId?: StringWithAggregatesFilter<"Admin"> | string
     isActive?: BoolWithAggregatesFilter<"Admin"> | boolean
+    tokenVersion?: IntWithAggregatesFilter<"Admin"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Admin"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Admin"> | Date | string
   }
@@ -14690,6 +14760,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -14708,6 +14779,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -14726,6 +14798,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -14744,6 +14817,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -14762,6 +14836,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -14776,6 +14851,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -14790,6 +14866,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -15407,6 +15484,7 @@ export namespace Prisma {
     password: string
     fullName: string
     isActive?: boolean
+    tokenVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     role: RoleCreateNestedOneWithoutAdminsInput
@@ -15421,6 +15499,7 @@ export namespace Prisma {
     fullName: string
     roleId: string
     isActive?: boolean
+    tokenVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     logs?: LogUncheckedCreateNestedManyWithoutAdminInput
@@ -15433,6 +15512,7 @@ export namespace Prisma {
     password?: StringFieldUpdateOperationsInput | string
     fullName?: StringFieldUpdateOperationsInput | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    tokenVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     role?: RoleUpdateOneRequiredWithoutAdminsNestedInput
@@ -15447,6 +15527,7 @@ export namespace Prisma {
     fullName?: StringFieldUpdateOperationsInput | string
     roleId?: StringFieldUpdateOperationsInput | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    tokenVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     logs?: LogUncheckedUpdateManyWithoutAdminNestedInput
@@ -15460,6 +15541,7 @@ export namespace Prisma {
     fullName: string
     roleId: string
     isActive?: boolean
+    tokenVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -15471,6 +15553,7 @@ export namespace Prisma {
     password?: StringFieldUpdateOperationsInput | string
     fullName?: StringFieldUpdateOperationsInput | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    tokenVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -15483,6 +15566,7 @@ export namespace Prisma {
     fullName?: StringFieldUpdateOperationsInput | string
     roleId?: StringFieldUpdateOperationsInput | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    tokenVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -15842,6 +15926,7 @@ export namespace Prisma {
     ticketImage?: SortOrder
     medalImage?: SortOrder
     eventDate?: SortOrder
+    followGlobalTimer?: SortOrder
     isClosed?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -15861,6 +15946,7 @@ export namespace Prisma {
     ticketImage?: SortOrder
     medalImage?: SortOrder
     eventDate?: SortOrder
+    followGlobalTimer?: SortOrder
     isClosed?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -15875,6 +15961,7 @@ export namespace Prisma {
     ticketImage?: SortOrder
     medalImage?: SortOrder
     eventDate?: SortOrder
+    followGlobalTimer?: SortOrder
     isClosed?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -16424,8 +16511,13 @@ export namespace Prisma {
     fullName?: SortOrder
     roleId?: SortOrder
     isActive?: SortOrder
+    tokenVersion?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type AdminAvgOrderByAggregateInput = {
+    tokenVersion?: SortOrder
   }
 
   export type AdminMaxOrderByAggregateInput = {
@@ -16436,6 +16528,7 @@ export namespace Prisma {
     fullName?: SortOrder
     roleId?: SortOrder
     isActive?: SortOrder
+    tokenVersion?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -16448,8 +16541,13 @@ export namespace Prisma {
     fullName?: SortOrder
     roleId?: SortOrder
     isActive?: SortOrder
+    tokenVersion?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type AdminSumOrderByAggregateInput = {
+    tokenVersion?: SortOrder
   }
 
   export type AppSettingCountOrderByAggregateInput = {
@@ -17828,6 +17926,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -17845,6 +17944,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -17878,6 +17978,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -17895,6 +17996,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -17912,6 +18014,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -17929,6 +18032,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -18018,6 +18122,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18035,6 +18140,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18219,6 +18325,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -18236,6 +18343,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -18329,6 +18437,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18346,6 +18455,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18417,6 +18527,7 @@ export namespace Prisma {
     password: string
     fullName: string
     isActive?: boolean
+    tokenVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     role: RoleCreateNestedOneWithoutAdminsInput
@@ -18430,6 +18541,7 @@ export namespace Prisma {
     fullName: string
     roleId: string
     isActive?: boolean
+    tokenVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -18486,6 +18598,7 @@ export namespace Prisma {
     password?: StringFieldUpdateOperationsInput | string
     fullName?: StringFieldUpdateOperationsInput | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    tokenVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     role?: RoleUpdateOneRequiredWithoutAdminsNestedInput
@@ -18499,6 +18612,7 @@ export namespace Prisma {
     fullName?: StringFieldUpdateOperationsInput | string
     roleId?: StringFieldUpdateOperationsInput | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    tokenVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -18512,6 +18626,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -18529,6 +18644,7 @@ export namespace Prisma {
     ticketImage?: string | null
     medalImage?: string | null
     eventDate?: Date | string | null
+    followGlobalTimer?: boolean
     isClosed?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -18562,6 +18678,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18579,6 +18696,7 @@ export namespace Prisma {
     ticketImage?: NullableStringFieldUpdateOperationsInput | string | null
     medalImage?: NullableStringFieldUpdateOperationsInput | string | null
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -18594,6 +18712,7 @@ export namespace Prisma {
     password: string
     fullName: string
     isActive?: boolean
+    tokenVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     logs?: LogCreateNestedManyWithoutAdminInput
@@ -18606,6 +18725,7 @@ export namespace Prisma {
     password: string
     fullName: string
     isActive?: boolean
+    tokenVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     logs?: LogUncheckedCreateNestedManyWithoutAdminInput
@@ -18648,6 +18768,7 @@ export namespace Prisma {
     fullName?: StringFilter<"Admin"> | string
     roleId?: StringFilter<"Admin"> | string
     isActive?: BoolFilter<"Admin"> | boolean
+    tokenVersion?: IntFilter<"Admin"> | number
     createdAt?: DateTimeFilter<"Admin"> | Date | string
     updatedAt?: DateTimeFilter<"Admin"> | Date | string
   }
@@ -19191,6 +19312,7 @@ export namespace Prisma {
     password: string
     fullName: string
     isActive?: boolean
+    tokenVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -19202,6 +19324,7 @@ export namespace Prisma {
     password?: StringFieldUpdateOperationsInput | string
     fullName?: StringFieldUpdateOperationsInput | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    tokenVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     logs?: LogUpdateManyWithoutAdminNestedInput
@@ -19214,6 +19337,7 @@ export namespace Prisma {
     password?: StringFieldUpdateOperationsInput | string
     fullName?: StringFieldUpdateOperationsInput | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    tokenVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     logs?: LogUncheckedUpdateManyWithoutAdminNestedInput
@@ -19226,6 +19350,7 @@ export namespace Prisma {
     password?: StringFieldUpdateOperationsInput | string
     fullName?: StringFieldUpdateOperationsInput | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
+    tokenVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

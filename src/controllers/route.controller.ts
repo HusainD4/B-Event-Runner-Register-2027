@@ -43,21 +43,25 @@ export const getRoutePoints = async (req: Request, res: Response): Promise<any> 
 export const getRouteOverview = async (req: Request, res: Response): Promise<any> => {
   try {
     const [points, settings] = await Promise.all([
-      prisma.routePoint.findMany({ orderBy: { orderIndex: 'asc' } }).catch(() => []),
+      prisma.routePoint.findMany({ orderBy: { orderIndex: 'asc' } }),
       prisma.appSetting.findMany({
         where: {
           key: {
             in: [
+              'route_badge_label',
               'route_title',
               'route_desc',
               'route_gpx_url',
               'route_gmaps_url',
               'gmaps_embed_url',
               'route_map_image',
+              'route_map_mode',
+              'route_checkpoint_mode',
+              'route_checkpoint_image',
             ],
           },
         },
-      }).catch(() => []),
+      }),
     ]);
 
     const settingsMap: Record<string, string> = {};
@@ -68,27 +72,21 @@ export const getRouteOverview = async (req: Request, res: Response): Promise<any
     return res.status(200).json({
       status: 'success',
       data: {
+        badgeLabel: settingsMap.route_badge_label || 'Jalur Lari Steril',
         title: settingsMap.route_title || '',
         description: settingsMap.route_desc || '',
         gpxUrl: settingsMap.route_gpx_url || '',
         gmapsUrl: settingsMap.route_gmaps_url || settingsMap.gmaps_embed_url || '',
+        mapMode: settingsMap.route_map_mode || 'GMAPS',
         routeMapImage: settingsMap.route_map_image || '',
+        checkpointMode: settingsMap.route_checkpoint_mode || 'MANUAL',
+        checkpointImage: settingsMap.route_checkpoint_image || '',
         points: points,
       },
     });
   } catch (error: any) {
     console.error('🚨 [GET ROUTE OVERVIEW ERROR]:', error);
-    return res.status(200).json({
-      status: 'success',
-      data: {
-        title: '',
-        description: '',
-        gpxUrl: '',
-        gmapsUrl: '',
-        routeMapImage: '',
-        points: [],
-      },
-    });
+    return res.status(500).json({ status: 'error', message: 'Gagal mengambil informasi rute.' });
   }
 };
 

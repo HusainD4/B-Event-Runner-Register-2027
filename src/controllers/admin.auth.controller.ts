@@ -76,6 +76,7 @@ export const adminLogin = async (req: AuthenticatedRequest, res: Response): Prom
       roleId: admin.roleId,
       roleName: admin.role.name,
       permissions,
+      tokenVersion: admin.tokenVersion,
     };
 
     const token = jwt.sign(tokenPayload, env.JWT_SECRET, {

@@ -139,6 +139,7 @@ exports.Prisma.EventScalarFieldEnum = {
   ticketImage: 'ticketImage',
   medalImage: 'medalImage',
   eventDate: 'eventDate',
+  followGlobalTimer: 'followGlobalTimer',
   isClosed: 'isClosed',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -238,6 +239,7 @@ exports.Prisma.AdminScalarFieldEnum = {
   fullName: 'fullName',
   roleId: 'roleId',
   isActive: 'isActive',
+  tokenVersion: 'tokenVersion',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

@@ -2,24 +2,42 @@ import type { Request, Response } from 'express';
 import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import { z } from 'zod';
-
-const DEFAULT_EVENT_DATE = '2027-02-28T06:00:00.000Z';
+import { getEventTimerPhase } from '../utils/event-timing';
 
 export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   // Website Identity & Hero
   site_title: "Tegal Run 2027 - Official Half Marathon & 5K Festival",
   site_tagline: "Lari Bersama Menembus Batas di Kota Bahari",
+  navbar_title: "TEGAL RUN 2027",
+  navbar_icon_mode: "ICON",
+  navbar_icon: "fa-person-running",
+  navbar_icon_url: "",
+  favicon_url: "",
   hero_badge: "🔥 PENDAFTARAN RESMI DIBUKA",
   hero_title: "Tegal Run 2027: Lari Bersama Menembus Batas",
-  hero_subtitle: "Kompetisi lari terbesar di Kota Bahari dengan standar race profesional, timing chip akurat, dan medali finisher eksklusif.",
-  hero_bg_image: "https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=1920&q=80",
+  hero_subtitle: "Bergabung bersama komunitas pelari dan rayakan setiap langkah di Tegal Run 2027.",
+  hero_bg_image: "",
+  coming_soon_title: "COMING SOON EVENT!",
+  coming_soon_message: "Informasi lengkap acara akan segera hadir. Nantikan kabar terbaru dari kami!",
+  coming_soon_image_url: "",
 
   // Rute & Google Maps
+  route_badge_label: "Jalur Lari Steril",
   route_title: "Rute Lari Resmi & Titik Kumpul",
   route_desc: "Jalur datar beraspal mulus melintasi landmark bersejarah Kota Tegal dengan pemandangan pesisir utara dan pengawalan lalu lintas steril.",
+  route_map_mode: "GMAPS",
   gmaps_embed_url: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3961.042735759714!2d109.13658237587522!3d-6.885483267375218!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e6fb9b95952db7d%3A0xe54d6fbbece0f07b!2sAlun-Alun%20Kota%20Tegal!5e0!3m2!1sid!2sid!4v1700000000000!5m2!1sid!2sid",
   route_gmaps_url: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3961.042735759714!2d109.13658237587522!3d-6.885483267375218!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e6fb9b95952db7d%3A0xe54d6fbbece0f07b!2sAlun-Alun%20Kota%20Tegal!5e0!3m2!1sid!2sid!4v1700000000000!5m2!1sid!2sid",
   route_map_image: "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=1200&q=80",
+  route_checkpoint_mode: "MANUAL",
+  route_checkpoint_image: "",
+  faq_items: JSON.stringify([
+    { question: "Apakah tiket atau BIB perlombaan dapat dipindahtangankan?", answer: "Demi alasan keselamatan medis dan validitas data peserta, tiket dan nomor BIB terdaftar resmi tidak dapat dipindahtangankan atau diwakilkan kepada orang lain tanpa persetujuan dari panitia.", enabled: true },
+    { question: "Bagaimana prosedur pengambilan Race Pack (RPC)?", answer: "Informasi mengenai jadwal dan lokasi pengambilan racepack diumumkan melalui kanal resmi event. Peserta wajib membawa e-tiket resmi dan identitas diri yang sah saat pengambilan.", enabled: true },
+    { question: "Apakah ada ketentuan kualifikasi fisik bagi peserta?", answer: "Setiap peserta bertanggung jawab atas kondisi fisik dan kesehatannya masing-masing. Peserta diimbau melakukan pemeriksaan medis mandiri dan memastikan stamina tubuh prima sebelum mengikuti perlombaan.", enabled: true },
+    { question: "Bagaimana kebijakan acara jika terjadi keadaan kahar (Force Majeure)?", answer: "Jika terjadi cuaca ekstrem, kendala keamanan, atau situasi darurat yang tidak memungkinkan acara berlangsung, panitia berhak menyesuaikan jadwal atau rute demi keselamatan seluruh peserta sesuai regulasi yang berlaku.", enabled: true },
+    { question: "Bagaimana kerahasiaan data pribadi peserta dilindungi?", answer: "Seluruh data pribadi yang dikumpulkan saat pendaftaran dijaga kerahasiaannya dan hanya digunakan untuk keperluan operasional acara, keselamatan medis, serta verifikasi tiket sesuai peraturan yang berlaku.", enabled: true }
+  ]),
 
   // Fasilitas & Race Pack
   facilities_title: "Fasilitas & Layanan Unggulan",
@@ -39,18 +57,18 @@ export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   footer_copyright: "Hak Cipta Terpelihara © 2027 Panitia Resmi Tegal Run. Dilindungi Undang-Undang Republik Indonesia.",
 
   // Live Event Stats Grid
-  stat_1_val: "2,500+",
-  stat_1_unit: "Pelari Terdaftar",
-  stat_1_desc: "Antusiasme komunitas nasional",
-  stat_2_val: "2",
-  stat_2_unit: "Kategori Utama",
-  stat_2_desc: "Half Marathon 10K & Fun Run 5K",
-  stat_3_val: "100%",
-  stat_3_unit: "Steril & Aman",
-  stat_3_desc: "Pengawalan Dishub & Polresta",
-  stat_4_val: "Rp 75Jt",
-  stat_4_unit: "Total Hadiah & Doorprize",
-  stat_4_desc: "Podium juara & ratusan hadiah menarik",
+  stat_1_val: "",
+  stat_1_unit: "",
+  stat_1_desc: "",
+  stat_2_val: "",
+  stat_2_unit: "",
+  stat_2_desc: "",
+  stat_3_val: "",
+  stat_3_unit: "",
+  stat_3_desc: "",
+  stat_4_val: "",
+  stat_4_unit: "",
+  stat_4_desc: "",
 
   // File rute
   route_gpx_url: "#",
@@ -68,7 +86,6 @@ export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   legal_item_4_desc: "Enkripsi data pendaftaran dan kepatuhan penuh perlindungan data konsumen.",
 
   // Countdown & Registrasi
-  EVENT_COUNTDOWN_DATE: DEFAULT_EVENT_DATE,
   IS_REGISTRATION_CLOSED: "false",
   EVENT_TITLE: "Tegal Run 2027"
 };
@@ -78,36 +95,42 @@ export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
  */
 export const getPublicCountdownSettings = async (req: Request, res: Response): Promise<any> => {
   try {
-    const [dateSetting, closedSetting, titleSetting] = await Promise.all([
-      prisma.appSetting.findFirst({
-        where: { key: { in: ['EVENT_COUNTDOWN_DATE', 'event_countdown_date'] } }
+    const [settings, titleSettings] = await Promise.all([
+      prisma.appSetting.findMany({
+        where: { key: { in: ['EVENT_COUNTDOWN_DATE', 'event_countdown_date', 'IS_REGISTRATION_CLOSED', 'event_registration_closed'] } }
       }),
-      prisma.appSetting.findFirst({
-        where: { key: { in: ['IS_REGISTRATION_CLOSED', 'event_registration_closed'] } }
-      }),
-      prisma.appSetting.findFirst({
+      prisma.appSetting.findMany({
         where: { key: { in: ['EVENT_TITLE', 'event_title'] } }
       }),
     ]);
 
+    const findSetting = (canonicalKey: string, legacyKey: string) =>
+      settings.find(setting => setting.key === canonicalKey)
+      || settings.find(setting => setting.key === legacyKey);
+    const dateSetting = findSetting('EVENT_COUNTDOWN_DATE', 'event_countdown_date');
+    const closedSetting = findSetting('IS_REGISTRATION_CLOSED', 'event_registration_closed');
+    const eventCountdownDate = dateSetting?.value ? new Date(dateSetting.value) : null;
+    const manualRegistrationClosed = closedSetting?.value === 'true';
+    const timerPhase = getEventTimerPhase(eventCountdownDate);
+    const registrationPhase = timerPhase === 'UPCOMING' && manualRegistrationClosed
+      ? 'CLOSED'
+      : timerPhase;
+    const titleSetting = titleSettings.find(setting => setting.key === 'EVENT_TITLE')
+      || titleSettings.find(setting => setting.key === 'event_title');
+
     return res.status(200).json({
       status: 'success',
       data: {
-        eventCountdownDate: dateSetting ? dateSetting.value : DEFAULT_EVENT_DATE,
-        isRegistrationClosed: closedSetting ? closedSetting.value === 'true' : false,
+        eventCountdownDate: eventCountdownDate?.toISOString() || null,
+        manualRegistrationClosed,
+        isRegistrationClosed: manualRegistrationClosed || timerPhase !== 'UPCOMING',
+        registrationPhase,
         eventTitle: titleSetting ? titleSetting.value : ''
       }
     });
   } catch (error) {
     console.error('🚨 [GET SETTINGS ERROR]:', error);
-    return res.status(200).json({
-      status: 'success',
-      data: {
-        eventCountdownDate: null,
-        isRegistrationClosed: false,
-        eventTitle: ''
-      }
-    });
+    return res.status(500).json({ status: 'error', message: 'Gagal memuat status countdown dari database.' });
   }
 };
 
@@ -152,14 +175,38 @@ export const getPublicCheckoutConfig = async (req: Request, res: Response): Prom
 /**
  * Mengambil seluruh pengaturan konten website CMS (Public)
  */
-export const getWebsiteSettings = async (req: Request, res: Response): Promise<any> => {
+export const getWebsiteSettings = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const dbSettings = await prisma.appSetting.findMany();
     const settingsMap: Record<string, string> = { ...DEFAULT_WEBSITE_SETTINGS };
+    const permissions = req.admin?.permissions || [];
+    const canReadCms = req.admin?.roleName === 'SUPERADMIN' ||
+      permissions.includes('cms:manage') ||
+      permissions.includes('cms:*') ||
+      permissions.includes('page:cms');
+    const routeOnly = !canReadCms;
 
     dbSettings.forEach((item) => {
       settingsMap[item.key] = item.value;
     });
+
+    if (routeOnly) {
+      const routeKeys = [
+        'route_badge_label',
+        'route_title',
+        'route_desc',
+        'route_gpx_url',
+        'route_map_mode',
+        'route_checkpoint_mode',
+        'route_gmaps_url',
+        'route_map_image',
+        'route_checkpoint_image',
+      ];
+      return res.status(200).json({
+        status: 'success',
+        data: Object.fromEntries(routeKeys.map(key => [key, settingsMap[key] || '']))
+      });
+    }
 
     return res.status(200).json({
       status: 'success',
@@ -167,9 +214,9 @@ export const getWebsiteSettings = async (req: Request, res: Response): Promise<a
     });
   } catch (error) {
     console.error('🚨 [GET WEBSITE SETTINGS ERROR]:', error);
-    return res.status(200).json({
-      status: 'success',
-      data: { ...DEFAULT_WEBSITE_SETTINGS }
+    return res.status(500).json({
+      status: 'error',
+      message: 'Gagal memuat pengaturan website dari database.'
     });
   }
 };
@@ -211,34 +258,24 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
         });
       }
       savedCountdownIso = parsedDate.toISOString();
-      await Promise.all([
-        prisma.appSetting.upsert({
-          where: { key: 'EVENT_COUNTDOWN_DATE' },
-          update: { value: savedCountdownIso, description: 'Target tanggal hitung mundur utama event di landing page' },
-          create: { key: 'EVENT_COUNTDOWN_DATE', value: savedCountdownIso, description: 'Target tanggal hitung mundur utama event di landing page' }
-        }),
-        prisma.appSetting.upsert({
-          where: { key: 'event_countdown_date' },
-          update: { value: savedCountdownIso, description: 'Target tanggal hitung mundur utama event di landing page' },
-          create: { key: 'event_countdown_date', value: savedCountdownIso, description: 'Target tanggal hitung mundur utama event di landing page' }
-        })
-      ]);
+      await prisma.appSetting.upsert({
+        where: { key: 'EVENT_COUNTDOWN_DATE' },
+        update: { value: savedCountdownIso, description: 'Target tanggal hitung mundur utama event di landing page' },
+        create: { key: 'EVENT_COUNTDOWN_DATE', value: savedCountdownIso, description: 'Target tanggal hitung mundur utama event di landing page' }
+      });
     }
+    await prisma.event.updateMany({
+      where: { followGlobalTimer: true },
+      data: { eventDate: savedCountdownIso ? new Date(savedCountdownIso) : null }
+    });
 
     // Simpan Status Tutup Pendaftaran jika disertakan
     if (isRegistrationClosed !== undefined) {
-      await Promise.all([
-        prisma.appSetting.upsert({
-          where: { key: 'IS_REGISTRATION_CLOSED' },
-          update: { value: String(isRegistrationClosed), description: 'Status penutupan pendaftaran event secara global' },
-          create: { key: 'IS_REGISTRATION_CLOSED', value: String(isRegistrationClosed), description: 'Status penutupan pendaftaran event secara global' }
-        }),
-        prisma.appSetting.upsert({
-          where: { key: 'event_registration_closed' },
-          update: { value: String(isRegistrationClosed), description: 'Status penutupan pendaftaran event secara global' },
-          create: { key: 'event_registration_closed', value: String(isRegistrationClosed), description: 'Status penutupan pendaftaran event secara global' }
-        })
-      ]);
+      await prisma.appSetting.upsert({
+        where: { key: 'IS_REGISTRATION_CLOSED' },
+        update: { value: String(isRegistrationClosed), description: 'Status penutupan pendaftaran event secara global' },
+        create: { key: 'IS_REGISTRATION_CLOSED', value: String(isRegistrationClosed), description: 'Status penutupan pendaftaran event secara global' }
+      });
     }
 
     // Simpan Judul Event jika disertakan
@@ -261,12 +298,27 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
       }
     }).catch(() => null);
 
+    const savedClosedSettings = isRegistrationClosed === undefined
+      ? await prisma.appSetting.findMany({
+        where: { key: { in: ['IS_REGISTRATION_CLOSED', 'event_registration_closed'] } },
+        select: { key: true, value: true }
+      })
+      : [];
+    const manualRegistrationClosed = isRegistrationClosed !== undefined
+      ? isRegistrationClosed
+      : (savedClosedSettings.find(setting => setting.key === 'IS_REGISTRATION_CLOSED')
+        || savedClosedSettings.find(setting => setting.key === 'event_registration_closed'))?.value === 'true';
+    const timerPhase = getEventTimerPhase(savedCountdownIso ? new Date(savedCountdownIso) : null);
     return res.status(200).json({
       status: 'success',
       message: 'Pengaturan tanggal countdown event berhasil diperbarui.',
       data: {
         eventCountdownDate: savedCountdownIso,
-        isRegistrationClosed: isRegistrationClosed ?? false,
+        manualRegistrationClosed,
+        isRegistrationClosed: manualRegistrationClosed || timerPhase !== 'UPCOMING',
+        registrationPhase: timerPhase === 'UPCOMING' && manualRegistrationClosed
+          ? 'CLOSED'
+          : timerPhase,
         eventTitle: eventTitle || 'Tegal Run 2027'
       }
     });
@@ -274,7 +326,7 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
     console.error('🚨 [UPDATE SETTINGS ERROR]:', error);
     return res.status(500).json({
       status: 'error',
-      message: 'Gagal memperbarui pengaturan tanggal event.'
+      message: 'Gagal memperbarui pengaturan tanggal event. Periksa koneksi database lalu coba kembali.'
     });
   }
 };
@@ -285,11 +337,189 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
 export const updateWebsiteSettings = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const payload = req.body;
-    if (!payload || typeof payload !== 'object') {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return res.status(400).json({
         status: 'error',
         message: 'Payload pengaturan tidak valid.'
       });
+    }
+
+    const permissions = req.admin?.permissions || [];
+    const canManageCms = req.admin?.roleName === 'SUPERADMIN' ||
+      permissions.includes('cms:manage') ||
+      permissions.includes('cms:*');
+    const routeOnly = !canManageCms;
+    const routeKeys = [
+      'route_badge_label',
+      'route_title',
+      'route_desc',
+      'route_gpx_url',
+      'route_map_mode',
+      'route_checkpoint_mode',
+      'route_gmaps_url',
+      'route_map_image',
+      'route_checkpoint_image',
+    ];
+    if (routeOnly) {
+      const allowedRouteKeys = new Set(routeKeys);
+      const unsupportedKeys = Object.keys(payload).filter(key => !allowedRouteKeys.has(key));
+      if (unsupportedKeys.length > 0) {
+        return res.status(403).json({
+          status: 'error',
+          message: 'Akses rute hanya dapat mengubah pengaturan rute, bukan seluruh konten CMS.'
+        });
+      }
+    }
+
+    const navbarIconOptions = [
+      'fa-person-running', 'fa-medal', 'fa-trophy', 'fa-flag-checkered', 'fa-bolt',
+      'fa-fire', 'fa-star', 'fa-mountain-sun', 'fa-shoe-prints', 'fa-heart-pulse',
+      'fa-stopwatch', 'fa-award', 'fa-dumbbell', 'fa-route', 'fa-location-dot',
+      'fa-sun', 'fa-water', 'fa-compass', 'fa-crown', 'fa-leaf'
+    ] as const;
+    const navbarSettingsSchema = z.object({
+      navbar_title: z.string().trim().max(80, 'Judul navbar maksimal 80 karakter.').optional(),
+      navbar_icon_mode: z.enum(['ICON', 'IMAGE']).optional(),
+      navbar_icon: z.enum(navbarIconOptions).optional(),
+      navbar_icon_url: z.string().max(2048).refine((value) => {
+        if (!value) return true;
+        try {
+          return ['http:', 'https:'].includes(new URL(value).protocol);
+        } catch {
+          return false;
+        }
+      }, 'URL ikon navbar harus menggunakan http:// atau https://.').optional(),
+      favicon_url: z.string().max(2048).refine((value) => {
+        if (!value) return true;
+        try {
+          return ['http:', 'https:'].includes(new URL(value).protocol);
+        } catch {
+          return false;
+        }
+      }, 'URL favicon harus menggunakan http:// atau https://.').optional()
+    }).superRefine((settings, context) => {
+      if (settings.navbar_icon_mode === 'IMAGE' && !settings.navbar_icon_url?.trim()) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['navbar_icon_url'],
+          message: 'URL gambar ikon wajib diisi saat mode link gambar dipilih.'
+        });
+      }
+    }).safeParse(payload);
+    if (!navbarSettingsSchema.success) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Pengaturan navbar tidak valid.',
+        errors: navbarSettingsSchema.error.errors.map(error => ({
+          field: error.path.join('.'),
+          message: error.message
+        }))
+      });
+    }
+
+    const settingsPayload: Record<string, unknown> = { ...payload, ...navbarSettingsSchema.data };
+
+    const comingSoonSettingsSchema = z.object({
+      coming_soon_title: z.string().trim().min(1).max(100).optional(),
+      coming_soon_message: z.string().trim().max(500).optional(),
+      coming_soon_image_url: z.string().max(2048).refine(value => {
+        if (!value) return true;
+        try {
+          return ['http:', 'https:'].includes(new URL(value).protocol);
+        } catch {
+          return false;
+        }
+      }, 'URL gambar Coming Soon harus menggunakan http:// atau https://.').optional(),
+    }).safeParse(payload);
+    if (!comingSoonSettingsSchema.success) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Pengaturan Coming Soon tidak valid.',
+        errors: comingSoonSettingsSchema.error.errors.map(error => ({
+          field: error.path.join('.'),
+          message: error.message
+        }))
+      });
+    }
+    Object.assign(settingsPayload, comingSoonSettingsSchema.data);
+
+    const routeSettingsSchema = z.object({
+      route_badge_label: z.string().max(80).optional(),
+      route_title: z.string().max(120).optional(),
+      route_desc: z.string().max(3000).optional(),
+      route_gpx_url: z.string().max(2048).optional(),
+      route_map_mode: z.enum(['GMAPS', 'IMAGE']).optional(),
+      route_checkpoint_mode: z.enum(['MANUAL', 'IMAGE']).optional(),
+      route_gmaps_url: z.string().max(2048).optional(),
+      route_map_image: z.string().max(2048).optional(),
+      route_checkpoint_image: z.string().max(2048).optional(),
+    }).superRefine((settings, context) => {
+      const isHttpUrlOrEmpty = (value: string | undefined) => {
+        if (!value) return true;
+        try {
+          return ['http:', 'https:'].includes(new URL(value).protocol);
+        } catch {
+          return false;
+        }
+      };
+      if (settings.route_gpx_url && settings.route_gpx_url !== '#' && !isHttpUrlOrEmpty(settings.route_gpx_url)) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ['route_gpx_url'], message: 'Link file GPX harus menggunakan http:// atau https://.' });
+      }
+      if (settings.route_gmaps_url && !isHttpUrlOrEmpty(settings.route_gmaps_url)) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ['route_gmaps_url'], message: 'Link Google Maps harus menggunakan http:// atau https://.' });
+      }
+      if (settings.route_map_image !== undefined && !isHttpUrlOrEmpty(settings.route_map_image)) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ['route_map_image'], message: 'URL gambar peta harus menggunakan http:// atau https://.' });
+      }
+      if (settings.route_checkpoint_image !== undefined && !isHttpUrlOrEmpty(settings.route_checkpoint_image)) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ['route_checkpoint_image'], message: 'URL gambar checkpoint harus menggunakan http:// atau https://.' });
+      }
+      if (settings.route_map_mode === 'IMAGE' && !settings.route_map_image?.trim()) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ['route_map_image'], message: 'URL gambar peta wajib diisi untuk mode gambar.' });
+      }
+      if (settings.route_map_mode === 'GMAPS' && !settings.route_gmaps_url?.trim()) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ['route_gmaps_url'], message: 'Link Google Maps wajib diisi untuk mode peta.' });
+      }
+      if (settings.route_checkpoint_mode === 'IMAGE' && !settings.route_checkpoint_image?.trim()) {
+        context.addIssue({ code: z.ZodIssueCode.custom, path: ['route_checkpoint_image'], message: 'URL gambar checkpoint wajib diisi untuk mode gambar.' });
+      }
+    }).safeParse(payload);
+    if (!routeSettingsSchema.success) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Pengaturan tampilan rute tidak valid.',
+        errors: routeSettingsSchema.error.errors.map(error => ({
+          field: error.path.join('.'),
+          message: error.message
+        }))
+      });
+    }
+
+    if (payload.faq_items !== undefined) {
+      let faqItems: unknown = payload.faq_items;
+      if (typeof faqItems === 'string') {
+        try {
+          faqItems = JSON.parse(faqItems);
+        } catch {
+          return res.status(400).json({ status: 'error', message: 'Data FAQ harus berupa JSON yang valid.' });
+        }
+      }
+      const faqResult = z.array(z.object({
+        question: z.string().trim().min(1).max(240),
+        answer: z.string().trim().min(1).max(3000),
+        enabled: z.boolean()
+      })).max(50).safeParse(faqItems);
+      if (!faqResult.success) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Data FAQ tidak valid.',
+          errors: faqResult.error.errors.map(error => ({
+            field: error.path.join('.'),
+            message: error.message
+          }))
+        });
+      }
+      settingsPayload.faq_items = JSON.stringify(faqResult.data);
     }
 
     // Bersihkan link Google Maps jika admin mem-paste tag <iframe> lengkap
@@ -298,22 +528,22 @@ export const updateWebsiteSettings = async (req: AuthenticatedRequest, res: Resp
       return (match && match[1]) ? match[1] : raw.trim();
     };
 
-    if (payload.gmaps_embed_url && typeof payload.gmaps_embed_url === 'string') {
-      payload.gmaps_embed_url = cleanGmaps(payload.gmaps_embed_url);
-      payload.route_gmaps_url = payload.gmaps_embed_url;
-    } else if (typeof payload.route_gmaps_url === 'string') {
-      payload.route_gmaps_url = cleanGmaps(payload.route_gmaps_url);
-      payload.gmaps_embed_url = payload.route_gmaps_url;
+    if (settingsPayload.gmaps_embed_url && typeof settingsPayload.gmaps_embed_url === 'string') {
+      settingsPayload.gmaps_embed_url = cleanGmaps(settingsPayload.gmaps_embed_url);
+      settingsPayload.route_gmaps_url = settingsPayload.gmaps_embed_url;
+    } else if (typeof settingsPayload.route_gmaps_url === 'string') {
+      settingsPayload.route_gmaps_url = cleanGmaps(settingsPayload.route_gmaps_url);
+      settingsPayload.gmaps_embed_url = settingsPayload.route_gmaps_url;
     }
 
-    if (payload.medal_preview_image && !payload.medal_image) {
-      payload.medal_image = payload.medal_preview_image;
-    } else if (payload.medal_image && !payload.medal_preview_image) {
-      payload.medal_preview_image = payload.medal_image;
+    if (settingsPayload.medal_preview_image && !settingsPayload.medal_image) {
+      settingsPayload.medal_image = settingsPayload.medal_preview_image;
+    } else if (settingsPayload.medal_image && !settingsPayload.medal_preview_image) {
+      settingsPayload.medal_preview_image = settingsPayload.medal_image;
     }
 
     // Simpan semua entri setting
-    const updatePromises = Object.entries(payload).map(([key, val]) => {
+    const updatePromises = Object.entries(settingsPayload).map(([key, val]) => {
       const stringVal = typeof val === 'string' ? val : JSON.stringify(val);
       return prisma.appSetting.upsert({
         where: { key },
@@ -339,11 +569,14 @@ export const updateWebsiteSettings = async (req: AuthenticatedRequest, res: Resp
     const dbSettings = await prisma.appSetting.findMany();
     const settingsMap: Record<string, string> = { ...DEFAULT_WEBSITE_SETTINGS };
     dbSettings.forEach(item => { settingsMap[item.key] = item.value; });
+    const responseSettings = routeOnly
+      ? Object.fromEntries(routeKeys.map(key => [key, settingsMap[key] || '']))
+      : settingsMap;
 
     return res.status(200).json({
       status: 'success',
       message: 'Seluruh konten dan gambar website berhasil disimpan ke database.',
-      data: settingsMap
+      data: responseSettings
     });
   } catch (error: any) {
     console.error('🚨 [UPDATE CMS ERROR]:', error);

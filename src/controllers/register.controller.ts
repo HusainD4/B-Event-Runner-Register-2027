@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { snap } from '../config/midtrans';
 import prisma from '../config/database'; // Menggunakan singleton database terpusat
 import { sendOrderNotification } from '../services/notification.service';
+import { getEventRegistrationStatus, getEventTimerPhase } from '../utils/event-timing';
 
 export const registerEvent = async (req: Request, res: Response): Promise<any> => {
   try {
@@ -18,11 +19,24 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
     }
 
     // Periksa apakah pendaftaran ditutup secara global atau per event oleh panitia
-    const globalClosedSetting = await prisma.appSetting.findUnique({ where: { key: 'IS_REGISTRATION_CLOSED' } });
-    if (globalClosedSetting && globalClosedSetting.value === 'true') {
+    const registrationSettings = await prisma.appSetting.findMany({
+      where: { key: { in: ['IS_REGISTRATION_CLOSED', 'event_registration_closed', 'EVENT_COUNTDOWN_DATE', 'event_countdown_date'] } },
+      select: { key: true, value: true },
+    });
+    const globalClosedSetting = registrationSettings.find(setting => setting.key === 'IS_REGISTRATION_CLOSED')
+      || registrationSettings.find(setting => setting.key === 'event_registration_closed');
+    const countdownSetting = registrationSettings.find(setting => setting.key === 'EVENT_COUNTDOWN_DATE')
+      || registrationSettings.find(setting => setting.key === 'event_countdown_date');
+    const globalTimerPhase = getEventTimerPhase(countdownSetting?.value ? new Date(countdownSetting.value) : null);
+    if (globalClosedSetting?.value === 'true' || globalTimerPhase !== 'UPCOMING') {
+      const closureMessage = globalTimerPhase === 'RACE_DAY'
+        ? 'Pendaftaran ditutup otomatis karena acara telah dimulai.'
+        : globalTimerPhase === 'COMPLETED'
+          ? 'Pendaftaran ditutup karena hari pelaksanaan acara telah lewat.'
+          : 'Pendaftaran Tegal Run 2027 telah resmi ditutup oleh panitia.';
       return res.status(400).json({ 
         status: "error", 
-        message: "Pendaftaran Tegal Run 2027 telah resmi ditutup oleh panitia." 
+        message: closureMessage
       });
     }
 
@@ -53,7 +67,8 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
     // Kumpulkan seluruh eventId unik yang didaftarkan (default ke eventId pemesan jika peserta tidak spesifik)
     const distinctEventIds = Array.from(new Set(participants.map((p: any) => p.eventId || eventId)));
     const events = await prisma.event.findMany({
-      where: { id: { in: distinctEventIds as string[] } }
+      where: { id: { in: distinctEventIds as string[] } },
+      include: { jerseys: true }
     });
     const eventMap = new Map<string, any>(events.map(ev => [ev.id, ev]));
 
@@ -67,11 +82,43 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
       if (!targetEv) {
         return res.status(404).json({ status: "error", message: "Kategori event tiket peserta tidak ditemukan." });
       }
-      if (targetEv.isClosed) {
+      const eventRegistrationStatus = getEventRegistrationStatus(targetEv.eventDate, targetEv.isClosed);
+      if (eventRegistrationStatus.registrationClosed && !eventRegistrationStatus.registrationClosedByTimer) {
         return res.status(400).json({ 
           status: "error", 
           message: `Pendaftaran untuk kategori ${targetEv.ticketName} telah resmi ditutup oleh panitia.` 
         });
+      }
+      if (eventRegistrationStatus.registrationClosedByTimer) {
+        return res.status(400).json({
+          status: 'error',
+          message: eventRegistrationStatus.registrationPhase === 'RACE_DAY'
+            ? `Pendaftaran kategori ${targetEv.ticketName} ditutup karena acara telah dimulai.`
+            : `Pendaftaran kategori ${targetEv.ticketName} ditutup karena hari pelaksanaan telah lewat.`
+        });
+      }
+      const eventJerseys = targetEv.jerseys || [];
+      if (eventJerseys.length > 0 && !p.jerseyId) {
+        return res.status(400).json({
+          status: 'error',
+          message: `Pilih tipe jersey untuk kategori ${targetEv.ticketName}.`
+        });
+      }
+      if (p.jerseyId) {
+        const selectedJersey = eventJerseys.find((jersey: { id: string }) => jersey.id === p.jerseyId);
+        if (!selectedJersey) {
+          return res.status(400).json({
+            status: 'error',
+            message: `Pilihan jersey peserta tidak sesuai dengan kategori ${targetEv.ticketName}.`
+          });
+        }
+        const availableSizes = Array.isArray(selectedJersey.sizes) ? selectedJersey.sizes : [];
+        if (!p.selectedSize || !availableSizes.includes(p.selectedSize)) {
+          return res.status(400).json({
+            status: 'error',
+            message: `Ukuran jersey peserta tidak tersedia untuk tipe ${selectedJersey.type}.`
+          });
+        }
       }
       eventCounts[pEventId] = (eventCounts[pEventId] || 0) + 1;
       subtotalTickets += Number(targetEv.price);
@@ -128,6 +175,59 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
     // 3. MULAI DATABASE TRANSACTION (ATOMIC)
     // =========================================================================
     const orderResult = await prisma.$transaction(async (tx) => {
+      const currentSettings = await tx.appSetting.findMany({
+        where: { key: { in: ['IS_REGISTRATION_CLOSED', 'event_registration_closed', 'EVENT_COUNTDOWN_DATE', 'event_countdown_date'] } },
+        select: { key: true, value: true }
+      });
+      const currentClosedSetting = currentSettings.find(setting => setting.key === 'IS_REGISTRATION_CLOSED')
+        || currentSettings.find(setting => setting.key === 'event_registration_closed');
+      const currentCountdownSetting = currentSettings.find(setting => setting.key === 'EVENT_COUNTDOWN_DATE')
+        || currentSettings.find(setting => setting.key === 'event_countdown_date');
+      const currentTimerPhase = getEventTimerPhase(
+        currentCountdownSetting?.value ? new Date(currentCountdownSetting.value) : null
+      );
+      if (currentClosedSetting?.value === 'true' || currentTimerPhase !== 'UPCOMING') {
+        throw new Error(currentTimerPhase === 'RACE_DAY'
+          ? 'REGISTRATION_CLOSED_RACE_DAY'
+          : currentTimerPhase === 'COMPLETED'
+            ? 'REGISTRATION_CLOSED_COMPLETED'
+            : 'REGISTRATION_CLOSED_MANUAL');
+      }
+
+      const currentEvents = await tx.event.findMany({
+        where: { id: { in: distinctEventIds as string[] } },
+        include: { jerseys: true }
+      });
+      const currentEventMap = new Map(currentEvents.map(currentEvent => [currentEvent.id, currentEvent]));
+      for (const [currentEventId] of Object.entries(eventCounts)) {
+        const currentEvent = currentEventMap.get(currentEventId);
+        if (!currentEvent) throw new Error('REGISTRATION_CLOSED_CATEGORY');
+        const eventRegistrationStatus = getEventRegistrationStatus(currentEvent.eventDate, currentEvent.isClosed);
+        if (eventRegistrationStatus.registrationClosed && !eventRegistrationStatus.registrationClosedByTimer) {
+          throw new Error('REGISTRATION_CLOSED_CATEGORY');
+        }
+        if (eventRegistrationStatus.registrationClosedByTimer) {
+          throw new Error(eventRegistrationStatus.registrationPhase === 'RACE_DAY'
+            ? 'REGISTRATION_CLOSED_RACE_DAY'
+            : 'REGISTRATION_CLOSED_COMPLETED');
+        }
+      }
+      for (const participant of participants) {
+        const participantEventId = participant.eventId || eventId;
+        const currentEvent = currentEventMap.get(participantEventId);
+        if (!currentEvent) throw new Error('REGISTRATION_CLOSED_CATEGORY');
+        const eventJerseys = currentEvent.jerseys || [];
+        if (eventJerseys.length > 0 && !participant.jerseyId) {
+          throw new Error('JERSEY_SELECTION_REQUIRED');
+        }
+        if (participant.jerseyId) {
+          const selectedJersey = eventJerseys.find((jersey: { id: string }) => jersey.id === participant.jerseyId);
+          const availableSizes = selectedJersey && Array.isArray(selectedJersey.sizes) ? selectedJersey.sizes : [];
+          if (!selectedJersey || !participant.selectedSize || !availableSizes.includes(participant.selectedSize)) {
+            throw new Error('JERSEY_SELECTION_INVALID');
+          }
+        }
+      }
       
       // A. PENGURANGAN KUOTA SUPER AMAN UNTUK TIAP KATEGORI (Anti Race-Condition)
       for (const [evId, count] of Object.entries(eventCounts)) {
@@ -277,6 +377,18 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
         status: "error", 
         message: "Maaf, kuota tiket tidak mencukupi atau sudah habis terjual." 
       });
+    }
+    if (error.message === 'REGISTRATION_CLOSED_RACE_DAY') {
+      return res.status(400).json({ status: 'error', message: 'Pendaftaran ditutup otomatis karena acara telah dimulai.' });
+    }
+    if (error.message === 'REGISTRATION_CLOSED_COMPLETED') {
+      return res.status(400).json({ status: 'error', message: 'Pendaftaran ditutup karena hari pelaksanaan acara telah lewat.' });
+    }
+    if (error.message === 'REGISTRATION_CLOSED_CATEGORY') {
+      return res.status(400).json({ status: 'error', message: 'Kategori tiket telah ditutup oleh panitia.' });
+    }
+    if (error.message === 'REGISTRATION_CLOSED_MANUAL') {
+      return res.status(400).json({ status: 'error', message: 'Pendaftaran telah ditutup oleh panitia.' });
     }
     
     console.error("🚨 [ERROR] Register Controller:", error);

@@ -10,6 +10,7 @@ export interface AdminTokenPayload {
   roleId: string;
   roleName: string;
   permissions: string[];
+  tokenVersion?: number;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -52,6 +53,12 @@ export const verifyAuthToken = async (req: AuthenticatedRequest, res: Response, 
         return res.status(401).json({
           status: 'error',
           message: 'Akun admin telah dinonaktifkan atau tidak ditemukan.',
+        });
+      }
+      if (Number(decoded.tokenVersion ?? 0) !== adminInDb.tokenVersion) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Sesi admin telah dicabut oleh Superadmin. Silakan login kembali.',
         });
       }
 
@@ -117,26 +124,10 @@ export const requirePermission = (...requiredPermissions: string[]) => {
 
     const { permissions, roleName } = req.admin;
 
-    // SUPERADMIN atau role dengan wildcard "*" memiliki akses tak terbatas
-    if (roleName === 'SUPERADMIN' || permissions.includes('*')) {
+    // Hanya role SUPERADMIN yang memiliki akses tak terbatas.
+    if (roleName === 'SUPERADMIN') {
       return next();
     }
-
-    // Pemetaan modul halaman ke hak akses API internal
-    const pageToPermissionsMap: Record<string, string[]> = {
-      'page:events': ['events:read', 'events:update', 'events:create', 'events:delete', 'benefits:manage', 'jerseys:manage', 'bib:manage'],
-      'page:participants': ['participants:read', 'participants:create', 'participants:update', 'participants:delete', 'bib:manage', 'jerseys:manage'],
-      'page:orders': ['orders:read', 'orders:update', 'orders:delete', 'finance:read'],
-      'page:notif-logs': ['events:update', 'notifications:read', 'notifications:dispatch'],
-      'page:whatsapp-web': ['events:update', 'notifications:manage', 'whatsapp:chat', 'whatsapp:session'],
-      'page:cms': ['events:update', 'cms:manage'],
-      'page:countdown': ['events:update', 'countdown:manage'],
-      'page:notifications': ['events:update', 'notifications:manage'],
-      'page:routes': ['events:update', 'routes:manage', 'routes:read'],
-      'page:admins': ['admins:manage'],
-      'page:logs': ['logs:read'],
-      'page:dashboard': ['finance:read'],
-    };
 
     // Evaluasi apakah admin memiliki minimal salah satu hak akses yang dipersyaratkan
     const hasAccess = requiredPermissions.some((perm) => {
@@ -146,13 +137,6 @@ export const requirePermission = (...requiredPermissions: string[]) => {
       // 2. Wildcard kategori (misal 'events:*' cocok untuk 'events:read')
       const category = perm.split(':')[0];
       if (permissions.includes(`${category}:*`)) return true;
-
-      // 3. Izin turunan dari halaman yang diizinkan (misal admin punya 'page:cms', maka dapat 'events:update')
-      for (const [pageKey, mappedPerms] of Object.entries(pageToPermissionsMap)) {
-        if (permissions.includes(pageKey) && (mappedPerms.includes(perm) || pageKey === perm)) {
-          return true;
-        }
-      }
 
       return false;
     });
@@ -169,7 +153,7 @@ export const requirePermission = (...requiredPermissions: string[]) => {
 };
 
 /**
- * Middleware khusus Superadmin / Admin dengan hak akses RBAC Manajemen Admin
+ * Middleware khusus akun dengan role SUPERADMIN
  */
 export const requireSuperAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction): any => {
   if (!req.admin) {
@@ -179,17 +163,13 @@ export const requireSuperAdmin = (req: AuthenticatedRequest, res: Response, next
     });
   }
 
-  const { roleName, permissions } = req.admin;
-  const isAuthorized =
-    roleName === 'SUPERADMIN' ||
-    permissions.includes('*') ||
-    permissions.includes('admins:manage') ||
-    permissions.includes('page:admins');
+  const { roleName } = req.admin;
+  const isAuthorized = roleName === 'SUPERADMIN';
 
   if (!isAuthorized) {
     return res.status(403).json({
       status: 'error',
-      message: 'Akses ditolak: Operasi ini hanya diizinkan untuk SUPERADMIN atau peran dengan hak kelola admin.',
+      message: 'Akses ditolak: Operasi ini hanya diizinkan untuk SUPERADMIN.',
     });
   }
   return next();

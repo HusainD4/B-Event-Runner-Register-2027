@@ -38,8 +38,9 @@ model Event {
   medalImage  String?
 
   // Fitur Tanggal Event (untuk Countdown Timer) & Status Buka/Tutup Pendaftaran
-  eventDate DateTime?
-  isClosed  Boolean   @default(false)
+  eventDate         DateTime?
+  followGlobalTimer Boolean   @default(false)
+  isClosed          Boolean   @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -209,15 +210,16 @@ model Role {
 // 10. ADMIN USERS
 // -------------------------------------------------------------
 model Admin {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  email     String   @unique
-  password  String // Password terenkripsi (PBKDF2/Scrypt hash + salt)
-  fullName  String
-  roleId    String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  password     String // Password terenkripsi (PBKDF2/Scrypt hash + salt)
+  fullName     String
+  roleId       String
+  isActive     Boolean  @default(true)
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   role Role  @relation(fields: [roleId], references: [id])
   logs Log[]
