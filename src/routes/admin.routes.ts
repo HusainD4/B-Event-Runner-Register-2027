@@ -105,6 +105,8 @@ import {
 import {
   verifyRacepackCode,
   checkinRacepack,
+  enqueueRacepackCheckin,
+  getRacepackQueue,
   revertRacepack,
   getRacepackStats,
   batchCheckinRacepack,
@@ -260,6 +262,8 @@ router.post('/notifications/dispatch-batch', requirePermission('events:update'),
 // 12. RACEPACK COLLECTION & CHECK-IN (RPC)
 // ==============================================================
 router.get('/racepack/verify/:code', requirePermission('participants:read', 'page:racepack', 'page:participants'), verifyRacepackCode);
+router.get('/racepack/queue', requirePermission('participants:read', 'page:racepack-view', 'page:racepack'), getRacepackQueue);
+router.post('/racepack/queue', requirePermission('participants:update', 'page:racepack', 'page:racepack-view'), enqueueRacepackCheckin);
 router.post('/racepack/checkin', requirePermission('participants:update', 'page:racepack', 'page:participants'), checkinRacepack);
 router.post('/racepack/batch-checkin', requirePermission('participants:update', 'page:racepack', 'page:participants'), batchCheckinRacepack);
 router.post('/racepack/revert', requirePermission('participants:update', 'page:racepack', 'page:participants'), revertRacepack);

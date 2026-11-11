@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reset-admin": "tsx prisma/reset-and-seed-admin.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

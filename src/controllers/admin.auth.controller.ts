@@ -225,4 +225,3 @@ export const changeAdminPassword = async (req: AuthenticatedRequest, res: Respon
     return res.status(500).json({ status: 'error', message: 'Gagal mengubah password.' });
   }
 };
-

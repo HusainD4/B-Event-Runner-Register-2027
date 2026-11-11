@@ -122,6 +122,7 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
 
     // Generate Order ID Unik untuk Midtrans (Format: TR-Waktu-Random)
     const midtransOrderId = `TR-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const paymentExpiresAt = new Date(Date.now() + paymentTimerMinutes * 60_000);
 
     // =========================================================================
     // 3. MULAI DATABASE TRANSACTION (ATOMIC)
@@ -187,6 +188,14 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
           entityId: order.id,
           metadata: { participantCount, totalAmount, midtransOrderId, serviceFee }
         }
+      });
+
+      await tx.appSetting.create({
+        data: {
+          key: `payment_expiry_${order.id}`,
+          value: paymentExpiresAt.toISOString(),
+          description: 'Batas waktu pembayaran untuk pesanan',
+        },
       });
 
       return order; 
@@ -257,6 +266,7 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
         paymentToken: snapResponse.token,
         paymentUrl: snapResponse.redirect_url,
         paymentTimerMinutes,
+        paymentExpiresAt: paymentExpiresAt.toISOString(),
         serviceFee
       }
     });

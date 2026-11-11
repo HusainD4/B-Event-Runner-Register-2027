@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import prisma from '../config/database';
-import { emitStockUpdate } from '../sockets';
+import { emitStockUpdate } from '../sockets/index';
 import { sendOrderNotification } from '../services/notification.service';
 
 /**
@@ -53,31 +53,31 @@ export const handleMidtransWebhook = async (req: Request, res: Response): Promis
     }
 
     // Gunakan transaksi database untuk memperbarui status order & mengembalikan kuota jika dibatalkan/kadaluarsa
-    await prisma.$transaction(async (tx) => {
-      // Jika status berubah dari PENDING menjadi pembatalan/kadaluarsa, kembalikan kuota tiket
-      if (order.status === 'PENDING' && ['CANCEL', 'EXPIRE', 'DENY'].includes(newStatus)) {
-        const eventId = order.participants[0]?.eventId;
-        if (eventId) {
-          const count = order.participants.length;
-          // Kembalikan stok tiket
-          await tx.event.update({
+    const restoredStock = await prisma.$transaction(async (tx) => {
+      const update = await tx.order.updateMany({
+        where: { id: order.id, status: order.status },
+        data: { status: newStatus },
+      });
+
+      const stockUpdates: Array<{ eventId: string; stock: number }> = [];
+      if (update.count === 1 && order.status === 'PENDING' && ['CANCEL', 'EXPIRE', 'DENY'].includes(newStatus)) {
+        const eventCounts = new Map<string, number>();
+        for (const participant of order.participants) {
+          eventCounts.set(participant.eventId, (eventCounts.get(participant.eventId) || 0) + 1);
+        }
+        for (const [eventId, count] of eventCounts) {
+          const event = await tx.event.update({
             where: { id: eventId },
             data: { stock: { increment: count } },
+            select: { stock: true },
           });
-
-          // Ambil sisa stok terbaru untuk disiarkan via WebSocket
-          const updatedEvent = await tx.event.findUnique({ where: { id: eventId } });
-          if (updatedEvent) {
-            emitStockUpdate(eventId, updatedEvent.stock);
-          }
+          stockUpdates.push({ eventId, stock: event.stock });
         }
       }
 
-      // Update status order
-      await tx.order.update({
-        where: { id: order.id },
-        data: { status: newStatus },
-      });
+      if (['SETTLEMENT', 'CAPTURE', 'CANCEL', 'EXPIRE', 'DENY', 'REFUND'].includes(newStatus)) {
+        await tx.appSetting.deleteMany({ where: { key: `payment_expiry_${order.id}` } });
+      }
 
       // Catat log aktivitas webhook
       await tx.log.create({
@@ -89,7 +89,9 @@ export const handleMidtransWebhook = async (req: Request, res: Response): Promis
           metadata: { transaction_status, fraud_status, gross_amount },
         },
       });
+      return stockUpdates;
     });
+    for (const update of restoredStock) emitStockUpdate(update.eventId, update.stock);
 
     // Kirim notifikasi WhatsApp/Email secara asinkron
     if (newStatus === 'SETTLEMENT') {

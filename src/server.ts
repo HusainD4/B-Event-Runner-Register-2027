@@ -6,6 +6,7 @@ import { redis } from './config/redis';
 import { initSocketServer } from './sockets';
 import { logger } from './utils/logger';
 import { ensureDefaultRolesInDatabase } from './controllers/admin.rbac.controller';
+import { expirePendingOrders } from './services/order-expiration.service';
 
 // 1. Buat HTTP Server menggunakan instance Express (app)
 const httpServer = http.createServer(app);
@@ -14,6 +15,7 @@ const httpServer = http.createServer(app);
 initSocketServer(httpServer);
 
 const PORT = env.PORT || 3000;
+let orderExpiryInterval: NodeJS.Timeout | null = null;
 
 /**
  * Fungsi utama untuk menyalakan server dengan pengecekan koneksi database & Redis terlebih dahulu
@@ -54,6 +56,12 @@ const startServer = async () => {
 
     // C. Jalankan HTTP & WebSocket Server
     httpServer.listen(Number(PORT), '0.0.0.0', () => {
+      orderExpiryInterval = setInterval(() => {
+        expirePendingOrders().catch(error => {
+          logger.error('[ORDER EXPIRY] Gagal memproses pesanan kedaluwarsa:', error);
+        });
+      }, 15_000);
+      orderExpiryInterval.unref();
       console.log(`==================================================`);
       console.log(`🚀 Server Tegal Run 2027 menyala di Port ${PORT}`);
       console.log(`🔗 Akses API: http://localhost:${PORT}/api`);
@@ -70,6 +78,7 @@ const startServer = async () => {
 // Tangkap sinyal terminasi untuk penutupan koneksi yang aman (Graceful Shutdown)
 const handleGracefulShutdown = async (signal: string) => {
   logger.warn(`⚠️ [SHUTDOWN] Menerima sinyal ${signal}. Menutup server secara aman...`);
+  if (orderExpiryInterval) clearInterval(orderExpiryInterval);
   
   try {
     // Tutup koneksi HTTP/Socket

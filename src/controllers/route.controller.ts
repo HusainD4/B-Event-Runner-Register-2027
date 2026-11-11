@@ -50,10 +50,6 @@ export const getRouteOverview = async (req: Request, res: Response): Promise<any
             in: [
               'route_title',
               'route_desc',
-              'route_specs_start_10k',
-              'route_specs_start_5k',
-              'route_specs_cot_10k',
-              'route_specs_cot_5k',
               'route_gpx_url',
               'route_gmaps_url',
               'gmaps_embed_url',
@@ -74,12 +70,6 @@ export const getRouteOverview = async (req: Request, res: Response): Promise<any
       data: {
         title: settingsMap.route_title || '',
         description: settingsMap.route_desc || '',
-        specs: {
-          start10k: settingsMap.route_specs_start_10k || '',
-          start5k: settingsMap.route_specs_start_5k || '',
-          cot10k: settingsMap.route_specs_cot_10k || '',
-          cot5k: settingsMap.route_specs_cot_5k || '',
-        },
         gpxUrl: settingsMap.route_gpx_url || '',
         gmapsUrl: settingsMap.route_gmaps_url || settingsMap.gmaps_embed_url || '',
         routeMapImage: settingsMap.route_map_image || '',
@@ -93,12 +83,6 @@ export const getRouteOverview = async (req: Request, res: Response): Promise<any
       data: {
         title: '',
         description: '',
-        specs: {
-          start10k: '',
-          start5k: '',
-          cot10k: '',
-          cot5k: '',
-        },
         gpxUrl: '',
         gmapsUrl: '',
         routeMapImage: '',
@@ -210,4 +194,3 @@ export const deleteRoutePoint = async (req: AuthenticatedRequest, res: Response)
     return res.status(500).json({ status: 'error', message: 'Gagal menghapus titik rute.' });
   }
 };
-

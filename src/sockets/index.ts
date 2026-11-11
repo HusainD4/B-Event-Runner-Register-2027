@@ -1,5 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import { allowedOrigins } from '../config/cors';
 
 let io: Server | null = null;
 
@@ -9,13 +10,7 @@ let io: Server | null = null;
 export const initSocketServer = (httpServer: HttpServer): Server => {
   io = new Server(httpServer, {
     cors: {
-      origin: [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'https://haisen.my.id',
-        'https://www.haisen.my.id',
-        'https://tegalrun2027.com',
-      ],
+      origin: allowedOrigins,
       methods: ['GET', 'POST'],
       credentials: true,
     },

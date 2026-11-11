@@ -5,7 +5,7 @@ import helmet from 'helmet';
 
 // Import Konfigurasi & Rute Utama
 import { corsConfig } from './config/cors';
-import routes from './routes';
+import routes from './routes/index';
 
 // Import Middleware Keamanan Tambahan & Jaring Pengaman
 import { setSecurityHeaders } from './middlewares/security';

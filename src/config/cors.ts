@@ -1,7 +1,8 @@
 import type { CorsOptions } from 'cors';
 
 // Daftar domain yang diizinkan untuk menembak API ini
-const allowedOrigins = [
+export const allowedOrigins = [
+  'https://siexa.haisen.my.id',
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:5174',
@@ -12,7 +13,10 @@ const allowedOrigins = [
   'https://haisen.my.id',
   'https://www.haisen.my.id',
   'https://tegalrun2027.com',
-  'https://pendaftaran-running.haisen.my.id'
+  'https://pendaftaran-running.haisen.my.id',
+  'https://api.haisen.my.id',
+  // 'https://backend-siexa.haisen.my.id',
+  '192.168.0.115'
 ];
 
 export const corsConfig: CorsOptions = {

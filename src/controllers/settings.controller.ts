@@ -52,11 +52,7 @@ export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   stat_4_unit: "Total Hadiah & Doorprize",
   stat_4_desc: "Podium juara & ratusan hadiah menarik",
 
-  // Detail Spesifikasi Rute & GPX
-  route_start_10k: "05:45 WIB",
-  route_start_5k: "06:15 WIB",
-  route_cot_10k: "2 Jam 30 Menit",
-  route_cot_5k: "1 Jam 30 Menit",
+  // File rute
   route_gpx_url: "#",
 
   // Legal & Perizinan
@@ -97,7 +93,7 @@ export const getPublicCountdownSettings = async (req: Request, res: Response): P
     return res.status(200).json({
       status: 'success',
       data: {
-        eventCountdownDate: dateSetting ? dateSetting.value : null,
+        eventCountdownDate: dateSetting ? dateSetting.value : DEFAULT_EVENT_DATE,
         isRegistrationClosed: closedSetting ? closedSetting.value === 'true' : false,
         eventTitle: titleSetting ? titleSetting.value : ''
       }
@@ -305,7 +301,7 @@ export const updateWebsiteSettings = async (req: AuthenticatedRequest, res: Resp
     if (payload.gmaps_embed_url && typeof payload.gmaps_embed_url === 'string') {
       payload.gmaps_embed_url = cleanGmaps(payload.gmaps_embed_url);
       payload.route_gmaps_url = payload.gmaps_embed_url;
-    } else if (payload.route_gmaps_url && typeof payload.route_gmaps_url === 'string') {
+    } else if (typeof payload.route_gmaps_url === 'string') {
       payload.route_gmaps_url = cleanGmaps(payload.route_gmaps_url);
       payload.gmaps_embed_url = payload.route_gmaps_url;
     }
