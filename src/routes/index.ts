@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-
+import registerRoutes from './register.routes.js';
 // Import sub-rute utama
-import registerRoutes from './register.routes';
-import webhookRoutes from './webhook.routes';
-import eventRoutes from './event.routes';
-import adminRoutes from './admin.routes';
+// import registerRoutes from './register.routes';
+import webhookRoutes from './webhook.routes.js';
+import eventRoutes from './event.routes.js';
+import adminRoutes from './admin.routes.js';
 import { getPublicCountdownSettings, getWebsiteSettings, getPublicCheckoutConfig } from '../controllers/settings.controller';
 import { getRouteOverview, getRoutePoints } from '../controllers/route.controller';
 import {
