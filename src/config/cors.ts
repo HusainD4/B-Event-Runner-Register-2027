@@ -1,5 +1,6 @@
 import type { CorsOptions } from 'cors';
-import { env } from './env';
+// import { env } from './env';
+import { env } from './env.js';
 
 // Daftar domain yang diizinkan untuk menembak API ini
 export const allowedOrigins = [
