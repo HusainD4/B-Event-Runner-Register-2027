@@ -112,7 +112,7 @@ import routes from './routes/index.js';
 // Import Middleware Keamanan Tambahan & Jaring Pengaman
 import { setSecurityHeaders } from './middlewares/security.js';
 import { globalErrorHandler, notFoundHandler } from './middlewares/errorHandler.js';
-import { emitDataChanged } from './sockets.js';
+import { emitDataChanged } from './sockets/index.js';
 
 // Inisialisasi Aplikasi Express
 const app = express();
