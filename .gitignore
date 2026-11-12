@@ -7,3 +7,4 @@ auth_info_baileys/
 .cursor/
 .devin/
 .idea/
+.env.admin-seed-credentials.json

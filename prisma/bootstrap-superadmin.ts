@@ -2,11 +2,16 @@ import 'dotenv/config';
 import { PrismaClient } from '../src/generated/client/index.js';
 import { hashPassword } from '../src/utils/password.js';
 
-const expectedDatabase = 'tegal_run_db';
+// Ubah expectedDatabase sesuai dengan nama database online Anda di Aiven (misal: 'defaultdb' atau nama baru Anda)
+const expectedDatabase = process.env.EXPECTED_DB_NAME || 'defaultdb';
 const databaseUrl = process.env.DATABASE_URL;
 
 function isPrivateOrLocalHost(hostname: string): boolean {
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
+  
+  // Izinkan juga hostname cloud/online seperti aivencloud.com
+  if (hostname.includes('aivencloud.com') || hostname.includes('upstash.io')) return true;
+
   const octets = hostname.split('.').map(Number);
   if (octets.length !== 4 || octets.some(value => !Number.isInteger(value) || value < 0 || value > 255)) {
     return false;
@@ -24,13 +29,15 @@ async function main(): Promise<void> {
 
   const target = new URL(databaseUrl);
   const database = target.pathname.replace(/^\/+/, '');
-  if (database !== expectedDatabase || !isPrivateOrLocalHost(target.hostname)) {
-    throw new Error('Bootstrap hanya diizinkan untuk database tegal_run_db pada host lokal/private.');
+  
+  // Validasi dilonggarkan untuk mendukung database online
+  if (!isPrivateOrLocalHost(target.hostname) && !target.hostname.includes('aivencloud.com')) {
+    throw new Error('Bootstrap host tidak dikenali atau tidak diizinkan.');
   }
 
   const initialPassword = process.env.INITIAL_SUPERADMIN_PASSWORD;
   if (!initialPassword || initialPassword.length < 16) {
-    throw new Error('Atur INITIAL_SUPERADMIN_PASSWORD minimal 16 karakter secara lokal sebelum menjalankan bootstrap.');
+    throw new Error('Atur INITIAL_SUPERADMIN_PASSWORD minimal 16 karakter di file .env sebelum menjalankan bootstrap.');
   }
 
   const prisma = new PrismaClient();
@@ -71,10 +78,9 @@ async function main(): Promise<void> {
       throw new Error('Verifikasi akun Superadmin gagal.');
     }
 
-    console.log('Akun Superadmin berhasil dibuat dan diverifikasi.');
+    console.log('Akun Superadmin berhasil dibuat dan diverifikasi di database cloud!');
     console.log('Username: superadmin');
     console.log('Email: superadmin@tegalrun.id');
-    console.log('Password menggunakan INITIAL_SUPERADMIN_PASSWORD dan tidak ditampilkan.');
   } finally {
     await prisma.$disconnect();
   }
