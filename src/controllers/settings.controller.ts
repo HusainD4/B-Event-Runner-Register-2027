@@ -3,6 +3,8 @@ import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import { z } from 'zod';
 import { getEventTimerPhase } from '../utils/event-timing';
+import { emitDataChanged } from '../sockets';
+import { env } from '../config/env';
 
 export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   // Website Identity & Hero
@@ -133,12 +135,27 @@ Apabila terjadi bencana alam, kebakaran, kerusuhan sosial, atau kebijakan pemeri
  */
 export const getPublicCountdownSettings = async (req: Request, res: Response): Promise<any> => {
   try {
-    const [settings, titleSettings] = await Promise.all([
+    const [settings, titleSettings, statusSettings] = await Promise.all([
       prisma.appSetting.findMany({
         where: { key: { in: ['EVENT_COUNTDOWN_DATE', 'event_countdown_date', 'IS_REGISTRATION_CLOSED', 'event_registration_closed'] } }
       }),
       prisma.appSetting.findMany({
         where: { key: { in: ['EVENT_TITLE', 'event_title'] } }
+      }),
+      prisma.appSetting.findMany({
+        where: {
+          key: {
+            in: [
+              'registration_operating_hours',
+              'registration_closed_message',
+              'maintenance_enabled',
+              'maintenance_type',
+              'maintenance_title',
+              'maintenance_message',
+              'maintenance_expected_end'
+            ]
+          }
+        }
       }),
     ]);
 
@@ -155,6 +172,7 @@ export const getPublicCountdownSettings = async (req: Request, res: Response): P
       : timerPhase;
     const titleSetting = titleSettings.find(setting => setting.key === 'EVENT_TITLE')
       || titleSettings.find(setting => setting.key === 'event_title');
+    const getStatusSetting = (key: string) => statusSettings.find(setting => setting.key === key)?.value || '';
 
     return res.status(200).json({
       status: 'success',
@@ -163,7 +181,14 @@ export const getPublicCountdownSettings = async (req: Request, res: Response): P
         manualRegistrationClosed,
         isRegistrationClosed: manualRegistrationClosed || timerPhase !== 'UPCOMING',
         registrationPhase,
-        eventTitle: titleSetting ? titleSetting.value : ''
+        eventTitle: titleSetting ? titleSetting.value : '',
+        registrationOperatingHours: getStatusSetting('registration_operating_hours'),
+        registrationClosedMessage: getStatusSetting('registration_closed_message'),
+        maintenanceEnabled: getStatusSetting('maintenance_enabled') === 'true',
+        maintenanceType: getStatusSetting('maintenance_type') || 'REPAIR',
+        maintenanceTitle: getStatusSetting('maintenance_title'),
+        maintenanceMessage: getStatusSetting('maintenance_message'),
+        maintenanceExpectedEnd: getStatusSetting('maintenance_expected_end') || null,
       }
     });
   } catch (error) {
@@ -195,17 +220,15 @@ export const getPublicCheckoutConfig = async (req: Request, res: Response): Prom
         feeEnabled,
         feeType,
         feeAmount,
+        midtransClientKey: env.MIDTRANS_CLIENT_KEY,
+        midtransIsProduction: env.MIDTRANS_IS_PRODUCTION === 'true' || env.MIDTRANS_IS_PRODUCTION === true,
       },
     });
   } catch (error) {
-    return res.status(200).json({
-      status: 'success',
-      data: {
-        paymentTimerMinutes: 30,
-        feeEnabled: true,
-        feeType: 'PER_TRANSACTION',
-        feeAmount: 0,
-      },
+    console.error('🚨 [GET CHECKOUT CONFIG ERROR]:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Gagal memuat konfigurasi checkout. Silakan coba kembali beberapa saat lagi.',
     });
   }
 };
@@ -278,7 +301,14 @@ export const getWebsiteSettings = async (req: AuthenticatedRequest, res: Respons
 const updateCountdownSchema = z.object({
   eventCountdownDate: z.string().nullable().optional(),
   isRegistrationClosed: z.boolean().optional(),
-  eventTitle: z.string().optional()
+  eventTitle: z.string().optional(),
+  registrationOperatingHours: z.string().max(120).optional(),
+  registrationClosedMessage: z.string().max(300).optional(),
+  maintenanceEnabled: z.boolean().optional(),
+  maintenanceType: z.enum(['REPAIR', 'ROUTINE', 'UPDATE', 'OTHER']).optional(),
+  maintenanceTitle: z.string().max(120).optional(),
+  maintenanceMessage: z.string().max(1000).optional(),
+  maintenanceExpectedEnd: z.string().nullable().optional()
 });
 
 /**
@@ -295,15 +325,35 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
       });
     }
 
-    const { eventCountdownDate, isRegistrationClosed, eventTitle } = parseResult.data;
+    const {
+      eventCountdownDate,
+      isRegistrationClosed,
+      eventTitle,
+      registrationOperatingHours,
+      registrationClosedMessage,
+      maintenanceEnabled,
+      maintenanceType,
+      maintenanceTitle,
+      maintenanceMessage,
+      maintenanceExpectedEnd
+    } = parseResult.data;
 
     let savedCountdownIso: string | null = null;
+    if (eventCountdownDate === undefined) {
+      const currentCountdownSettings = await prisma.appSetting.findMany({
+        where: { key: { in: ['EVENT_COUNTDOWN_DATE', 'event_countdown_date'] } },
+        select: { key: true, value: true }
+      });
+      const currentCountdownSetting = currentCountdownSettings.find(setting => setting.key === 'EVENT_COUNTDOWN_DATE')
+        || currentCountdownSettings.find(setting => setting.key === 'event_countdown_date');
+      savedCountdownIso = currentCountdownSetting?.value || null;
+    }
     // Simpan atau Kosongkan Tanggal Countdown
-    if (!eventCountdownDate || eventCountdownDate.trim() === '') {
+    if (eventCountdownDate !== undefined && (!eventCountdownDate || eventCountdownDate.trim() === '')) {
       await prisma.appSetting.deleteMany({
         where: { key: { in: ['EVENT_COUNTDOWN_DATE', 'event_countdown_date'] } }
       });
-    } else {
+    } else if (eventCountdownDate !== undefined) {
       const parsedDate = new Date(eventCountdownDate);
       if (isNaN(parsedDate.getTime())) {
         return res.status(400).json({
@@ -318,10 +368,12 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
         create: { key: 'EVENT_COUNTDOWN_DATE', value: savedCountdownIso, description: 'Target tanggal hitung mundur utama event di landing page' }
       });
     }
-    await prisma.event.updateMany({
-      where: { followGlobalTimer: true },
-      data: { eventDate: savedCountdownIso ? new Date(savedCountdownIso) : null }
-    });
+    if (eventCountdownDate !== undefined) {
+      await prisma.event.updateMany({
+        where: { followGlobalTimer: true },
+        data: { eventDate: savedCountdownIso ? new Date(savedCountdownIso) : null }
+      });
+    }
 
     // Simpan Status Tutup Pendaftaran jika disertakan
     if (isRegistrationClosed !== undefined) {
@@ -340,6 +392,71 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
         create: { key: 'EVENT_TITLE', value: eventTitle, description: 'Judul resmi event' }
       });
     }
+
+    const statusSettings: Array<{ key: string; value: string; description: string }> = [];
+    if (registrationOperatingHours !== undefined) {
+      statusSettings.push({
+        key: 'registration_operating_hours',
+        value: registrationOperatingHours.trim(),
+        description: 'Jam operasional pendaftaran yang ditampilkan saat pendaftaran ditutup'
+      });
+    }
+    if (registrationClosedMessage !== undefined) {
+      statusSettings.push({
+        key: 'registration_closed_message',
+        value: registrationClosedMessage.trim(),
+        description: 'Pesan publik saat pendaftaran ditutup'
+      });
+    }
+    if (maintenanceEnabled !== undefined) {
+      statusSettings.push({
+        key: 'maintenance_enabled',
+        value: String(maintenanceEnabled),
+        description: 'Status mode maintenance website'
+      });
+    }
+    if (maintenanceType !== undefined) {
+      statusSettings.push({
+        key: 'maintenance_type',
+        value: maintenanceType,
+        description: 'Jenis maintenance website'
+      });
+    }
+    if (maintenanceTitle !== undefined) {
+      statusSettings.push({
+        key: 'maintenance_title',
+        value: maintenanceTitle.trim(),
+        description: 'Judul halaman maintenance website'
+      });
+    }
+    if (maintenanceMessage !== undefined) {
+      statusSettings.push({
+        key: 'maintenance_message',
+        value: maintenanceMessage.trim(),
+        description: 'Pesan halaman maintenance website'
+      });
+    }
+    if (maintenanceExpectedEnd !== undefined) {
+      let expectedEnd = '';
+      if (maintenanceExpectedEnd) {
+        const parsedExpectedEnd = new Date(maintenanceExpectedEnd);
+        if (Number.isNaN(parsedExpectedEnd.getTime())) {
+          return res.status(400).json({ status: 'error', message: 'Format perkiraan waktu maintenance selesai tidak valid.' });
+        }
+        expectedEnd = parsedExpectedEnd.toISOString();
+      }
+      statusSettings.push({
+        key: 'maintenance_expected_end',
+        value: expectedEnd,
+        description: 'Perkiraan waktu selesai maintenance website'
+      });
+    }
+    await Promise.all(statusSettings.map(setting => prisma.appSetting.upsert({
+      where: { key: setting.key },
+      update: { value: setting.value, description: setting.description },
+      create: setting
+    })));
+    emitDataChanged(['countdown', 'public:countdown']);
 
     // Catat ke audit log
     await prisma.log.create({
@@ -363,6 +480,22 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
       : (savedClosedSettings.find(setting => setting.key === 'IS_REGISTRATION_CLOSED')
         || savedClosedSettings.find(setting => setting.key === 'event_registration_closed'))?.value === 'true';
     const timerPhase = getEventTimerPhase(savedCountdownIso ? new Date(savedCountdownIso) : null);
+    const refreshedStatusSettings = await prisma.appSetting.findMany({
+      where: {
+        key: {
+          in: [
+            'registration_operating_hours',
+            'registration_closed_message',
+            'maintenance_enabled',
+            'maintenance_type',
+            'maintenance_title',
+            'maintenance_message',
+            'maintenance_expected_end'
+          ]
+        }
+      }
+    });
+    const getStatusSetting = (key: string) => refreshedStatusSettings.find(setting => setting.key === key)?.value || '';
     return res.status(200).json({
       status: 'success',
       message: 'Pengaturan tanggal countdown event berhasil diperbarui.',
@@ -373,7 +506,14 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
         registrationPhase: timerPhase === 'UPCOMING' && manualRegistrationClosed
           ? 'CLOSED'
           : timerPhase,
-        eventTitle: eventTitle || 'Tegal Run 2027'
+        eventTitle: eventTitle || 'Tegal Run 2027',
+        registrationOperatingHours: getStatusSetting('registration_operating_hours'),
+        registrationClosedMessage: getStatusSetting('registration_closed_message'),
+        maintenanceEnabled: getStatusSetting('maintenance_enabled') === 'true',
+        maintenanceType: getStatusSetting('maintenance_type') || 'REPAIR',
+        maintenanceTitle: getStatusSetting('maintenance_title'),
+        maintenanceMessage: getStatusSetting('maintenance_message'),
+        maintenanceExpectedEnd: getStatusSetting('maintenance_expected_end') || null,
       }
     });
   } catch (error: any) {
@@ -509,6 +649,22 @@ export const updateWebsiteSettings = async (req: AuthenticatedRequest, res: Resp
       terms_modal_title: z.string().trim().max(160).optional(),
       terms_modal_subtitle: z.string().trim().max(240).optional(),
       terms_modal_content: z.string().max(12000).optional(),
+      medal_image: z.string().max(2048).refine(value => {
+        if (!value.trim()) return true;
+        try {
+          return ['http:', 'https:'].includes(new URL(value).protocol);
+        } catch {
+          return false;
+        }
+      }, 'URL gambar kategori tiket harus menggunakan http:// atau https://.').optional(),
+      medal_preview_image: z.string().max(2048).refine(value => {
+        if (!value.trim()) return true;
+        try {
+          return ['http:', 'https:'].includes(new URL(value).protocol);
+        } catch {
+          return false;
+        }
+      }, 'URL gambar kategori tiket harus menggunakan http:// atau https://.').optional(),
     }).safeParse(payload);
     if (!legalContentSchema.success) {
       return res.status(400).json({

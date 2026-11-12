@@ -19,7 +19,12 @@ const envSchema = z.object({
   MIDTRANS_IS_PRODUCTION: z.union([z.string(), z.boolean()]).default('false'),
 
   // Keamanan JWT (Untuk Auth Admin)
-  JWT_SECRET: z.string().min(10, "JWT_SECRET minimal harus 10 karakter demi keamanan").default("SUPER_SECRET_KEY_TEGAL_RUN_2027"),
+  JWT_SECRET: z.string()
+    .min(32, "JWT_SECRET minimal harus 32 karakter dan wajib diatur melalui environment.")
+    .refine(
+      (value) => !['SUPER_SECRET_KEY_TEGAL_RUN_2027', 'your-super-secret-jwt-key-replace-in-production'].includes(value),
+      "JWT_SECRET tidak boleh menggunakan nilai default atau placeholder."
+    ),
 });
 
 // 2. Parse dan Validasi process.env secara real-time

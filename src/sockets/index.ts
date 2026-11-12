@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { corsConfig } from '../config/cors';
 import { env } from '../config/env';
 import prisma from '../config/database';
+import { ADMIN_SESSION_COOKIE, readCookie } from '../config/admin-session';
 
 let io: Server | null = null;
 
@@ -20,7 +21,7 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
   });
 
   io.use(async (socket, next) => {
-    const token = socket.handshake.auth?.token;
+    const token = readCookie(socket.handshake.headers.cookie, ADMIN_SESSION_COOKIE);
     if (!token) return next();
 
     try {
@@ -51,6 +52,7 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
     socket.join('public');
     if (socket.data.adminId) {
       socket.join('admin');
+      socket.join(`admin:${socket.data.adminId}`);
       io?.to('admin').emit('admin:presence_changed');
     }
 
@@ -90,6 +92,11 @@ export const emitDataChanged = (topics: string[]) => {
 
 export const emitAdminEvent = (eventName: string, payload: unknown) => {
   io?.to('admin').emit(eventName, payload);
+};
+
+export const emitAdminEventTo = (adminId: string, eventName: string, payload: unknown) => {
+  if (!adminId) return;
+  io?.to(`admin:${adminId}`).emit(eventName, payload);
 };
 
 export const getConnectedAdminIds = async (): Promise<Set<string>> => {

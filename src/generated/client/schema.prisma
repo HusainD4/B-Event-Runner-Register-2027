@@ -79,8 +79,9 @@ model Jersey {
   name String
   type String
 
-  sizes Json
-  image String?
+  sizes        Json
+  image        String?
+  bannerImages Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -104,8 +105,9 @@ model Order {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id])
-  participants Participant[]
+  user          User          @relation(fields: [userId], references: [id])
+  participants  Participant[]
+  masterQrToken QrToken?      @relation("OrderMasterQrToken")
 
   @@map("orders")
 }
@@ -140,11 +142,24 @@ model Participant {
 
   createdAt DateTime @default(now())
 
-  order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  event  Event   @relation(fields: [eventId], references: [id])
-  jersey Jersey? @relation(fields: [jerseyId], references: [id])
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  event   Event    @relation(fields: [eventId], references: [id])
+  jersey  Jersey?  @relation(fields: [jerseyId], references: [id])
+  qrToken QrToken? @relation("ParticipantQrToken")
 
   @@map("participants")
+}
+
+model QrToken {
+  token         String   @id @db.Char(10)
+  participantId String?  @unique
+  orderId       String?  @unique
+  createdAt     DateTime @default(now())
+
+  participant Participant? @relation("ParticipantQrToken", fields: [participantId], references: [id], onDelete: Cascade)
+  order       Order?       @relation("OrderMasterQrToken", fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("qr_tokens")
 }
 
 // -------------------------------------------------------------

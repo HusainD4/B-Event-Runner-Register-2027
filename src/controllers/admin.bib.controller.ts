@@ -135,7 +135,7 @@ export const getAdminQrSettings = async (req: AuthenticatedRequest, res: Respons
     const prefix = await getQrPrefix();
     return res.status(200).json({
       status: 'success',
-      data: { prefix, formatPattern: `${prefix}|enkripsi_teks` },
+      data: { prefix, formatPattern: `${prefix}|##########` },
     });
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message });
@@ -161,7 +161,7 @@ export const saveAdminQrSettings = async (req: AuthenticatedRequest, res: Respon
 
     return res.status(200).json({
       status: 'success',
-      message: `Awalan QR Code berhasil disimpan sebagai "${savedPrefix}". Format: ${savedPrefix}|enkripsi_teks`,
+      message: `Awalan QR Code berhasil disimpan sebagai "${savedPrefix}". QR baru menggunakan format ${savedPrefix}|10_digit_acak.`,
       data: { prefix: savedPrefix },
     });
   } catch (err: any) {
@@ -320,4 +320,3 @@ export const savePaymentAndFeeSettings = async (req: AuthenticatedRequest, res: 
     return res.status(500).json({ status: 'error', message: err.message });
   }
 };
-

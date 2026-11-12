@@ -2,11 +2,12 @@ import { Router } from 'express';
 
 // Middlewares
 import { verifyAuthToken, verifyAdminRole, requirePermission, requireSuperAdmin } from '../middlewares/auth';
-import { adminAuthLimiter } from '../middlewares/rateLimiter';
+import { adminAuthLimiter, backupExportLimiter } from '../middlewares/rateLimiter';
 
 // Controllers
 import {
   adminLogin,
+  adminLogout,
   getAdminProfile,
   changeAdminPassword,
 } from '../controllers/admin.auth.controller';
@@ -26,6 +27,7 @@ import {
   deleteAdmin,
 } from '../controllers/admin.rbac.controller';
 import { forceLogoutAdmin, getRoleMonitoring } from '../controllers/admin.monitoring.controller';
+import { downloadCsvBackup, downloadSqlBackup, getBackupOverview } from '../controllers/admin.backup.controller';
 
 import {
   getPublicCountdownSettings,
@@ -108,6 +110,7 @@ import {
   checkinRacepack,
   enqueueRacepackCheckin,
   getRacepackQueue,
+  getRacepackConfirmationList,
   revertRacepack,
   getRacepackStats,
   batchCheckinRacepack,
@@ -136,10 +139,14 @@ router.post('/auth/login', adminAuthLimiter, adminLogin);
 // 2. SEMUA RUTE DI BAWAH INI MEMERLUKAN AUTENTIKASI ADMIN
 // ==============================================================
 router.use(verifyAuthToken, verifyAdminRole);
+router.post('/auth/logout', adminLogout);
 
 // --- Profil Admin Sendiri ---
 router.get('/auth/me', getAdminProfile);
 router.put('/auth/change-password', changeAdminPassword);
+router.get('/backups', requireSuperAdmin, getBackupOverview);
+router.post('/backups/sql', backupExportLimiter, requireSuperAdmin, downloadSqlBackup);
+router.post('/backups/csv', backupExportLimiter, requireSuperAdmin, downloadCsvBackup);
 
 // --- Ringkasan Dashboard & Keuangan ---
 router.get('/stats', requirePermission('page:dashboard'), getAdminStats);
@@ -266,6 +273,7 @@ router.post('/notifications/dispatch-batch', requirePermission('notifications:di
 // ==============================================================
 router.get('/racepack/verify/:code', requirePermission('participants:read'), verifyRacepackCode);
 router.get('/racepack/queue', requirePermission('participants:read'), getRacepackQueue);
+router.get('/racepack/confirmations', requirePermission('participants:read'), getRacepackConfirmationList);
 router.post('/racepack/queue', requirePermission('racepack:checkin'), enqueueRacepackCheckin);
 router.post('/racepack/checkin', requirePermission('racepack:checkin'), checkinRacepack);
 router.post('/racepack/batch-checkin', requirePermission('racepack:checkin'), batchCheckinRacepack);

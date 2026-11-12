@@ -4,7 +4,7 @@ import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import { decryptQrPayload } from '../services/qr-crypto.service';
 import { getGlobalBibSettings, assignBibToParticipant } from '../services/bib.service';
-import { emitDataChanged } from '../sockets';
+import { emitAdminEvent, emitAdminEventTo, emitDataChanged } from '../sockets';
 
 const checkinSchema = z.object({
   participantId: z.string().min(1, 'Participant ID wajib diisi'),
@@ -67,7 +67,21 @@ export const verifyRacepackCode = async (req: AuthenticatedRequest, res: Respons
       // ignore
     }
 
-    // 1. Cek apakah format terenkripsi BEBASNAMA|enkripsi_teks
+    // Resolve compact 10-digit QR tokens from the database before legacy payloads.
+    if (cleanCode.includes('|')) {
+      const parts = cleanCode.split('|').map((s) => s.trim()).filter(Boolean);
+      const cipherCandidate = parts.length > 1 ? parts[1] : parts[0];
+      if (/^\d{10}$/.test(cipherCandidate)) {
+        const qrToken = await prisma.qrToken.findUnique({
+          where: { token: cipherCandidate },
+          select: { participantId: true, orderId: true },
+        });
+        if (qrToken?.participantId) cleanCode = qrToken.participantId;
+        else if (qrToken?.orderId) cleanCode = qrToken.orderId;
+      }
+    }
+
+    // 1. Cek format QR terenkripsi legacy BEBASNAMA|enkripsi_teks
     if (cleanCode.includes('|')) {
       const parts = cleanCode.split('|').map((s) => s.trim()).filter(Boolean);
       const cipherCandidate = parts.length > 1 ? parts[1] : parts[0];
@@ -409,6 +423,12 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
     }
 
     const checkinsMap = await getRacepackCheckinsMap();
+    if (checkinsMap[participant.id]?.checkedIn) {
+      return res.status(409).json({
+        status: 'error',
+        message: 'Racepack peserta ini sudah dikonfirmasi sebelumnya.',
+      });
+    }
     if (!checkinsMap[participant.id]?.queued) {
       return res.status(400).json({
         status: 'error',
@@ -416,6 +436,13 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
       });
     }
     const currentAdminId = req.admin?.adminId || req.user?.userId || null;
+    const queueOwnerAdminId = checkinsMap[participant.id]?.queuedByAdminId;
+    if (!queueOwnerAdminId || queueOwnerAdminId !== currentAdminId) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Peserta ini dikirim ke antrean oleh admin lain.',
+      });
+    }
     const admin = currentAdminId
       ? await prisma.admin.findUnique({ where: { id: currentAdminId }, select: { fullName: true, username: true } })
       : null;
@@ -427,6 +454,9 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
       checkedInBy: adminIdentifier,
       adminId: currentAdminId,
       queued: false,
+      queuedAt: checkinsMap[participant.id]?.queuedAt,
+      queuedBy: checkinsMap[participant.id]?.queuedBy,
+      queuedByAdminId: queueOwnerAdminId,
       items: items.length > 0 ? items : [
         `Nomor BIB (${currentBibNumber || 'Ditetapkan'})`,
         `Jersey (${participant.selectedSize || 'M'})`,
@@ -440,6 +470,30 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
     checkinsMap[participant.id] = checkinData;
     await saveRacepackCheckinsMap(checkinsMap);
     emitDataChanged(['dashboard', 'racepack']);
+    if (queueOwnerAdminId) {
+      emitAdminEventTo(queueOwnerAdminId, 'admin:racepack_confirmation_changed', {
+        type: 'checked_in',
+        participant: {
+          id: participant.id,
+          fullNameKtp: participant.fullNameKtp,
+          bibNumber: currentBibNumber,
+          checkedIn: true,
+          checkedInAt: checkinData.checkedInAt,
+          checkedInBy: adminIdentifier,
+        },
+      });
+    }
+    emitAdminEvent('admin:racepack_queue_changed', {
+      type: 'checked_in',
+      participant: {
+        id: participant.id,
+        fullNameKtp: participant.fullNameKtp,
+        bibNumber: currentBibNumber,
+        checkedIn: true,
+        checkedInAt: checkinData.checkedInAt,
+        checkedInBy: adminIdentifier,
+      },
+    });
 
     // Audit log
     await prisma.log.create({
@@ -479,7 +533,10 @@ export const enqueueRacepackCheckin = async (req: AuthenticatedRequest, res: Res
 
     const participant = await prisma.participant.findUnique({
       where: { id: parsed.data.participantId },
-      include: { order: { select: { status: true } } },
+      include: {
+        order: { select: { status: true } },
+        jersey: { select: { name: true, type: true } },
+      },
     });
     if (!participant) return res.status(404).json({ status: 'error', message: 'Peserta tidak ditemukan.' });
     if (!['SETTLEMENT', 'CAPTURE'].includes(participant.order?.status || '')) {
@@ -494,12 +551,16 @@ export const enqueueRacepackCheckin = async (req: AuthenticatedRequest, res: Res
     const admin = req.admin?.adminId
       ? await prisma.admin.findUnique({ where: { id: req.admin.adminId }, select: { fullName: true, username: true } })
       : null;
+    const currentAdminId = req.admin?.adminId;
     const adminIdentifier = admin?.fullName || admin?.username || req.admin?.username || 'Admin';
+    const previousQueueOwnerAdminId = checkinsMap[participant.id]?.queuedByAdminId;
+    const queuedAt = new Date().toISOString();
     checkinsMap[participant.id] = {
       ...(checkinsMap[participant.id] || {}),
       queued: true,
-      queuedAt: new Date().toISOString(),
+      queuedAt,
       queuedBy: adminIdentifier,
+      queuedByAdminId: currentAdminId,
     };
     await saveRacepackCheckinsMap(checkinsMap);
 
@@ -510,6 +571,39 @@ export const enqueueRacepackCheckin = async (req: AuthenticatedRequest, res: Res
         adminId: req.admin?.adminId,
         entityType: 'Participant',
         entityId: participant.id,
+      },
+    });
+
+    if (previousQueueOwnerAdminId && previousQueueOwnerAdminId !== currentAdminId) {
+      emitAdminEventTo(previousQueueOwnerAdminId, 'admin:racepack_confirmation_changed', {
+        type: 'removed',
+        participantId: participant.id,
+      });
+    }
+    if (currentAdminId) {
+      emitAdminEventTo(currentAdminId, 'admin:racepack_confirmation_changed', {
+        type: 'queued',
+        participant: {
+          id: participant.id,
+          fullNameKtp: participant.fullNameKtp,
+          bibNumber: participant.bibNumber,
+          checkedIn: false,
+          checkedInAt: null,
+          checkedInBy: null,
+        },
+      });
+    }
+    emitAdminEvent('admin:racepack_queue_changed', {
+      type: 'queued',
+      participant: {
+        id: participant.id,
+        fullNameKtp: participant.fullNameKtp,
+        bibNumber: participant.bibNumber,
+        selectedSize: participant.selectedSize,
+        bibName: participant.bibName,
+        gender: participant.gender,
+        jersey: participant.jersey,
+        queue: { queuedAt, queuedBy: adminIdentifier },
       },
     });
 
@@ -525,19 +619,15 @@ export const getRacepackQueue = async (req: AuthenticatedRequest, res: Response)
     const [participants, checkinsMap] = await Promise.all([
       prisma.participant.findMany({
         where: { order: { status: { in: ['SETTLEMENT', 'CAPTURE'] } } },
-        include: {
-          event: { select: { ticketName: true, category: true } },
+        select: {
+          id: true,
+          fullNameKtp: true,
+          bibNumber: true,
+          selectedSize: true,
+          bibName: true,
+          gender: true,
+          createdAt: true,
           jersey: { select: { name: true, type: true } },
-          order: {
-            select: {
-              id: true,
-              midtransOrderId: true,
-              totalAmount: true,
-              status: true,
-              createdAt: true,
-              user: { select: { fullName: true, email: true, phoneNumber: true } },
-            },
-          },
         },
         orderBy: { createdAt: 'asc' },
       }),
@@ -547,16 +637,90 @@ export const getRacepackQueue = async (req: AuthenticatedRequest, res: Response)
     const queue = participants
       .filter(participant => checkinsMap[participant.id]?.queued && !checkinsMap[participant.id]?.checkedIn)
       .sort((a, b) => new Date(checkinsMap[a.id].queuedAt || a.createdAt).getTime() - new Date(checkinsMap[b.id].queuedAt || b.createdAt).getTime())
-      .map(participant => ({
-        ...participant,
-        order: participant.order ? { ...participant.order, totalAmount: Number(participant.order.totalAmount) } : null,
-        queue: checkinsMap[participant.id],
+      .map(({ id, fullNameKtp, bibNumber, selectedSize, bibName, gender, jersey }) => ({
+        id,
+        fullNameKtp,
+        bibNumber,
+        selectedSize,
+        bibName,
+        gender,
+        jersey,
+        queue: {
+          queuedAt: checkinsMap[id].queuedAt,
+          queuedBy: checkinsMap[id].queuedBy,
+        },
       }));
 
     return res.status(200).json({ status: 'success', data: queue });
   } catch (error: any) {
     console.error('getRacepackQueue error:', error);
     return res.status(500).json({ status: 'error', message: 'Gagal memuat antrean racepack.' });
+  }
+};
+
+export const getRacepackConfirmationList = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const currentAdminId = req.admin?.adminId;
+    if (!currentAdminId) {
+      return res.status(401).json({ status: 'error', message: 'Sesi admin tidak valid.' });
+    }
+
+    const checkinsMap = await getRacepackCheckinsMap();
+    const legacyQueuedIds = Object.entries(checkinsMap)
+      .filter(([, checkin]) => checkin?.queued && !checkin?.queuedByAdminId)
+      .map(([participantId]) => participantId);
+    if (legacyQueuedIds.length > 0) {
+      const queueLogs = await prisma.log.findMany({
+        where: {
+          action: 'RACEPACK_QUEUED',
+          entityType: 'Participant',
+          entityId: { in: legacyQueuedIds },
+        },
+        select: { entityId: true, adminId: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      let ownersUpdated = false;
+      for (const log of queueLogs) {
+        if (!log.entityId || !log.adminId || checkinsMap[log.entityId]?.queuedByAdminId) continue;
+        checkinsMap[log.entityId].queuedByAdminId = log.adminId;
+        ownersUpdated = true;
+      }
+      if (ownersUpdated) await saveRacepackCheckinsMap(checkinsMap);
+    }
+    const participantIds = Object.entries(checkinsMap)
+      .filter(([, checkin]) => checkin?.queuedByAdminId === currentAdminId && (checkin.queued || checkin.checkedIn))
+      .map(([participantId]) => participantId);
+    const participants = participantIds.length > 0
+      ? await prisma.participant.findMany({
+        where: {
+          id: { in: participantIds },
+          order: { status: { in: ['SETTLEMENT', 'CAPTURE'] } },
+        },
+        select: {
+          id: true,
+          fullNameKtp: true,
+          bibNumber: true,
+          createdAt: true,
+        },
+        orderBy: [{ fullNameKtp: 'asc' }, { createdAt: 'asc' }],
+      })
+      : [];
+
+    return res.status(200).json({
+      status: 'success',
+      data: participants.map(participant => ({
+        id: participant.id,
+        fullNameKtp: participant.fullNameKtp,
+        bibNumber: participant.bibNumber,
+        checkedIn: Boolean(checkinsMap[participant.id]?.checkedIn),
+        checkedInAt: checkinsMap[participant.id]?.checkedInAt || null,
+        checkedInBy: checkinsMap[participant.id]?.checkedInBy || null,
+        queuedAt: checkinsMap[participant.id]?.queuedAt || null,
+      })),
+    });
+  } catch (error: any) {
+    console.error('getRacepackConfirmationList error:', error);
+    return res.status(500).json({ status: 'error', message: 'Gagal memuat daftar konfirmasi racepack.' });
   }
 };
 
@@ -575,9 +739,17 @@ export const revertRacepack = async (req: AuthenticatedRequest, res: Response): 
 
     const checkinsMap = await getRacepackCheckinsMap();
     if (checkinsMap[participantId]) {
+      const queueOwnerAdminId = checkinsMap[participantId]?.queuedByAdminId;
       delete checkinsMap[participantId];
       await saveRacepackCheckinsMap(checkinsMap);
       emitDataChanged(['dashboard', 'racepack']);
+      if (queueOwnerAdminId) {
+        emitAdminEventTo(queueOwnerAdminId, 'admin:racepack_confirmation_changed', {
+          type: 'removed',
+          participantId,
+        });
+      }
+      emitAdminEvent('admin:racepack_queue_changed', { type: 'removed', participantId });
     }
 
     // Audit log
@@ -620,6 +792,7 @@ export const batchCheckinRacepack = async (req: AuthenticatedRequest, res: Respo
       where: { id: { in: participantIds } },
       include: {
         order: { select: { status: true, midtransOrderId: true } },
+        jersey: { select: { name: true, type: true } },
       },
     });
 
@@ -630,17 +803,26 @@ export const batchCheckinRacepack = async (req: AuthenticatedRequest, res: Respo
       : null;
     const adminIdentifier = admin?.fullName || admin?.username || req.admin?.username || 'Petugas RPC';
     let queuedCount = 0;
+    const queuedParticipants: Array<{ id: string; fullNameKtp: string; bibNumber: string | null }> = [];
+    const previousQueueOwners = new Map<string, string>();
+    const queuedAt = new Date().toISOString();
 
     for (const p of participants) {
       const isPaid = p.order?.status === 'SETTLEMENT' || p.order?.status === 'CAPTURE';
       if (!isPaid || checkinsMap[p.id]?.checkedIn) continue;
 
+      const previousQueueOwnerAdminId = checkinsMap[p.id]?.queuedByAdminId;
+      if (previousQueueOwnerAdminId && previousQueueOwnerAdminId !== currentAdminId) {
+        previousQueueOwners.set(p.id, previousQueueOwnerAdminId);
+      }
       checkinsMap[p.id] = {
         ...(checkinsMap[p.id] || {}),
         queued: true,
-        queuedAt: checkinsMap[p.id]?.queuedAt || new Date().toISOString(),
+        queuedAt: checkinsMap[p.id]?.queuedAt || queuedAt,
         queuedBy: adminIdentifier,
+        queuedByAdminId: currentAdminId,
       };
+      queuedParticipants.push({ id: p.id, fullNameKtp: p.fullNameKtp, bibNumber: p.bibNumber });
       queuedCount++;
     }
 
@@ -654,6 +836,42 @@ export const batchCheckinRacepack = async (req: AuthenticatedRequest, res: Respo
         metadata: { orderId, count: queuedCount },
       },
     }).catch(() => null);
+
+    for (const [participantId, previousAdminId] of previousQueueOwners) {
+      emitAdminEventTo(previousAdminId, 'admin:racepack_confirmation_changed', {
+        type: 'removed',
+        participantId,
+      });
+    }
+    if (currentAdminId) {
+      queuedParticipants.forEach(participant => {
+        emitAdminEventTo(currentAdminId, 'admin:racepack_confirmation_changed', {
+          type: 'queued',
+          participant: {
+            ...participant,
+            checkedIn: false,
+            checkedInAt: null,
+            checkedInBy: null,
+          },
+        });
+      });
+    }
+    queuedParticipants.forEach(participant => {
+      const queuedData = checkinsMap[participant.id];
+      const source = participants.find(item => item.id === participant.id);
+      if (!source) return;
+      emitAdminEvent('admin:racepack_queue_changed', {
+        type: 'queued',
+        participant: {
+          ...participant,
+          selectedSize: source.selectedSize,
+          bibName: source.bibName,
+          gender: source.gender,
+          jersey: source.jersey,
+          queue: { queuedAt: queuedData.queuedAt, queuedBy: queuedData.queuedBy },
+        },
+      });
+    });
 
     return res.status(200).json({
       status: 'success',

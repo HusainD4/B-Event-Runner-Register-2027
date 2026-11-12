@@ -1,10 +1,16 @@
 import 'dotenv/config';
+import { randomBytes } from 'crypto';
+import { existsSync } from 'fs';
+import { unlink, writeFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
 import { PrismaClient } from '../src/generated/client/index.js';
+import { DEFAULT_SYSTEM_ROLES } from '../src/controllers/admin.rbac.controller.js';
 import { hashPassword } from '../src/utils/password.js';
 
 const expectedDatabase = 'tegal_run_db';
 const confirmation = process.env.CONFIRM_DATABASE_RESET;
 const databaseUrl = process.env.DATABASE_URL;
+const credentialsPath = fileURLToPath(new URL('../.env.admin-seed-credentials.json', import.meta.url));
 
 function isPrivateOrLocalHost(hostname: string): boolean {
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
@@ -31,71 +37,133 @@ async function main(): Promise<void> {
   if (confirmation !== expectedDatabase) {
     throw new Error(`Set CONFIRM_DATABASE_RESET=${expectedDatabase} untuk mengonfirmasi reset.`);
   }
+  if (existsSync(credentialsPath)) {
+    throw new Error(`File kredensial sudah ada (${credentialsPath}); amankan atau pindahkan file tersebut sebelum reset.`);
+  }
 
   const prisma = new PrismaClient();
   try {
-    const adminPassword = await hashPassword('SuperAdmin2027!');
-    await prisma.$transaction(async tx => {
-      await tx.participant.deleteMany();
-      await tx.order.deleteMany();
-      await tx.eventBenefit.deleteMany();
-      await tx.bibConfiguration.deleteMany();
-      await tx.jersey.deleteMany();
-      await tx.event.deleteMany();
-      await tx.routePoint.deleteMany();
-      await tx.log.deleteMany();
-      await tx.user.deleteMany();
-      await tx.admin.deleteMany();
-      await tx.role.deleteMany();
-      await tx.appSetting.deleteMany();
-
-      const superadminRole = await tx.role.create({
-        data: {
-          name: 'SUPERADMIN',
-          description: 'Pemegang kendali tertinggi seluruh sistem.',
-          permissions: ['*'],
-        },
-      });
-
-      await tx.admin.create({
-        data: {
-          username: 'superadmin',
-          email: 'superadmin@tegalrun.id',
-          password: adminPassword,
-          fullName: 'Super Administrator Utama',
-          roleId: superadminRole.id,
-          isActive: true,
-        },
-      });
+    const roles = DEFAULT_SYSTEM_ROLES.map(({ name, description, permissions }) => ({
+      name,
+      description,
+      permissions,
+    }));
+    const credentials = roles.flatMap(role => {
+      const usernamePrefix = role.name.toLowerCase();
+      const emailPrefix = usernamePrefix.replace(/_/g, '-');
+      return [1, 2].map(number => ({
+        role: role.name,
+        username: `${usernamePrefix}_${String(number).padStart(2, '0')}`,
+        email: `${emailPrefix}${String(number).padStart(2, '0')}@tegalrun.id`,
+        fullName: `${role.name.replace(/_/g, ' ')} ${number}`,
+        password: randomBytes(24).toString('base64url'),
+      }));
     });
 
-    const counts = await Promise.all([
-      prisma.user.count(),
-      prisma.event.count(),
-      prisma.eventBenefit.count(),
-      prisma.jersey.count(),
-      prisma.order.count(),
-      prisma.participant.count(),
-      prisma.log.count(),
-      prisma.bibConfiguration.count(),
-      prisma.routePoint.count(),
-      prisma.appSetting.count(),
-      prisma.role.count(),
-      prisma.admin.count(),
-    ]);
-    const expectedCounts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1];
-    if (counts.some((count, index) => count !== expectedCounts[index])) {
-      throw new Error(`Verifikasi isi database gagal: ${JSON.stringify(counts)}`);
-    }
+    const credentialFile = {
+      warning: 'SIMPAN FILE INI SECARA AMAN. Password ditampilkan sekali dan tidak disimpan dalam database sebagai teks biasa.',
+      createdAt: new Date().toISOString(),
+      accounts: credentials,
+    };
+    await writeFile(credentialsPath, `${JSON.stringify(credentialFile, null, 2)}\n`, {
+      encoding: 'utf8',
+      flag: 'wx',
+      mode: 0o600,
+    });
 
-    console.log('Database berhasil dikosongkan dan diverifikasi. Hanya role SUPERADMIN dan akun superadmin yang dibuat.');
-    console.log('Login awal: superadmin / SuperAdmin2027! (segera ganti password setelah login).');
+    let resetCommitted = false;
+    try {
+      const passwordHashes = await Promise.all(credentials.map(account => hashPassword(account.password)));
+      await prisma.$transaction(async tx => {
+        await tx.qrToken.deleteMany();
+        await tx.participant.deleteMany();
+        await tx.order.deleteMany();
+        await tx.eventBenefit.deleteMany();
+        await tx.bibConfiguration.deleteMany();
+        await tx.jersey.deleteMany();
+        await tx.event.deleteMany();
+        await tx.routePoint.deleteMany();
+        await tx.log.deleteMany();
+        await tx.user.deleteMany();
+        await tx.admin.deleteMany();
+        await tx.role.deleteMany();
+        await tx.appSetting.deleteMany();
+
+        await tx.role.createMany({ data: roles });
+        const createdRoles = await tx.role.findMany({ select: { id: true, name: true } });
+        const roleIds = new Map(createdRoles.map(role => [role.name, role.id]));
+
+        await tx.admin.createMany({
+          data: credentials.map((account, index) => {
+            const roleId = roleIds.get(account.role);
+            if (!roleId) throw new Error(`Role ${account.role} tidak ditemukan setelah dibuat.`);
+            return {
+              username: account.username,
+              email: account.email,
+              password: passwordHashes[index],
+              fullName: account.fullName,
+              roleId,
+              isActive: true,
+            };
+          }),
+        });
+      }, { maxWait: 10_000, timeout: 60_000 });
+      resetCommitted = true;
+
+      const counts = {
+        users: await prisma.user.count(),
+        events: await prisma.event.count(),
+        benefits: await prisma.eventBenefit.count(),
+        jerseys: await prisma.jersey.count(),
+        orders: await prisma.order.count(),
+        participants: await prisma.participant.count(),
+        qrTokens: await prisma.qrToken.count(),
+        logs: await prisma.log.count(),
+        bibConfigurations: await prisma.bibConfiguration.count(),
+        routePoints: await prisma.routePoint.count(),
+        appSettings: await prisma.appSetting.count(),
+        roles: await prisma.role.count(),
+        admins: await prisma.admin.count(),
+        adminRoles: await prisma.role.count({ where: { admins: { some: {} } } }),
+        accountsPerRole: await prisma.role.findMany({
+          select: { name: true, _count: { select: { admins: true } } },
+          orderBy: { name: 'asc' },
+        }),
+      };
+
+      const hasOnlyAdminSeed = Object.entries(counts)
+        .filter(([key]) => !['roles', 'admins', 'adminRoles', 'accountsPerRole'].includes(key))
+        .every(([, count]) => count === 0);
+      if (
+        !hasOnlyAdminSeed ||
+        counts.roles !== roles.length ||
+        counts.admins !== roles.length * 2 ||
+        counts.adminRoles !== roles.length ||
+        counts.accountsPerRole.some(role => role._count.admins !== 2)
+      ) {
+        throw new Error(`Reset selesai tetapi verifikasi data tidak sesuai: ${JSON.stringify(counts)}`);
+      }
+
+      console.log(`Reset database ${database} berhasil. ${roles.length} role dan ${credentials.length} akun dibuat.`);
+      console.log('Seluruh tabel data aplikasi selain roles/admins sudah kosong; ledger migration dipertahankan.');
+      console.log(`Kredensial awal disimpan di: ${credentialsPath}`);
+      console.log('Simpan file itu di tempat aman lalu hapus salinan lokal setelah distribusi kredensial.');
+    } catch (error) {
+      if (!resetCommitted) {
+        try {
+          await unlink(credentialsPath);
+        } catch (cleanupError) {
+          console.error(`Gagal menghapus file kredensial sementara ${credentialsPath}:`, cleanupError);
+        }
+      }
+      throw error;
+    }
   } finally {
     await prisma.$disconnect();
   }
 }
 
 main().catch(error => {
-  console.error('Reset database gagal:', error);
+  console.error('Reset dan seed admin gagal:', error);
   process.exitCode = 1;
 });

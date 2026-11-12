@@ -1,4 +1,4 @@
-import { PrismaClient } from '../src/generated/client/index.js';
+﻿import { PrismaClient } from '../src/generated/client/index.js';
 import crypto from 'crypto';
 
 const prisma = new PrismaClient();
@@ -14,7 +14,19 @@ const hashPasswordHelper = (password: string): Promise<string> => {
 };
 
 async function main() {
-  console.log('🌱 Memulai proses seeding database ke MySQL...');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Database seeding yang menghapus data dinonaktifkan di production.');
+  }
+  const seedPasswords = [
+    process.env.SEED_SUPERADMIN_PASSWORD,
+    process.env.SEED_ADMIN_PASSWORD,
+    process.env.SEED_FINANCE_PASSWORD,
+  ];
+  if (seedPasswords.some((password) => !password || password.length < 16)) {
+    throw new Error('Atur SEED_SUPERADMIN_PASSWORD, SEED_ADMIN_PASSWORD, dan SEED_FINANCE_PASSWORD (minimal 16 karakter) sebelum menjalankan seed.');
+  }
+
+  console.log('ðŸŒ± Memulai proses seeding database ke MySQL...');
 
   // 1. Hapus data lama dengan urutan relasi aman
   await prisma.participant.deleteMany();
@@ -30,7 +42,7 @@ async function main() {
   await prisma.role.deleteMany();
   await prisma.appSetting.deleteMany();
 
-  console.log('🧹 Data lama berhasil dibersihkan.');
+  console.log('ðŸ§¹ Data lama berhasil dibersihkan.');
 
   // 2. Buat Default 12 Roles
   const defaultRolesData = [
@@ -139,10 +151,10 @@ async function main() {
   const administratorRoleId = createdRolesMap['ADMINISTRATOR'];
   const financeRoleId = createdRolesMap['FINANCE'];
 
-  console.log('✅ 12 Roles resmi berhasil dibuat: SUPERADMIN, ADMINISTRATOR, FINANCE, SPONSORSHIP, RACEPACK_OFFICER, GATE_OPERATOR, RACE_DIRECTOR, TIMING_JUDGE, MEDICAL_OFFICER, VOLUNTEER, BAG_DROP_OFFICER, CUSTOMER_SERVICE');
+  console.log('âœ… 12 Roles resmi berhasil dibuat: SUPERADMIN, ADMINISTRATOR, FINANCE, SPONSORSHIP, RACEPACK_OFFICER, GATE_OPERATOR, RACE_DIRECTOR, TIMING_JUDGE, MEDICAL_OFFICER, VOLUNTEER, BAG_DROP_OFFICER, CUSTOMER_SERVICE');
 
   // 3. Buat Akun Admin Default
-  const hashedSuperPassword = await hashPasswordHelper('SuperAdmin2027!');
+  const hashedSuperPassword = await hashPasswordHelper(process.env.SEED_SUPERADMIN_PASSWORD!);
   const superadmin = await prisma.admin.create({
     data: {
       username: 'superadmin',
@@ -154,7 +166,7 @@ async function main() {
     },
   });
 
-  const hashedAdminPassword = await hashPasswordHelper('AdminOps2027!');
+  const hashedAdminPassword = await hashPasswordHelper(process.env.SEED_ADMIN_PASSWORD!);
   await prisma.admin.create({
     data: {
       username: 'admin_ops',
@@ -166,7 +178,7 @@ async function main() {
     },
   });
 
-  const hashedFinancePassword = await hashPasswordHelper('Finance2027!');
+  const hashedFinancePassword = await hashPasswordHelper(process.env.SEED_FINANCE_PASSWORD!);
   await prisma.admin.create({
     data: {
       username: 'admin_finance',
@@ -178,10 +190,10 @@ async function main() {
     },
   });
 
-  console.log('✅ Akun Admin berhasil dibuat:');
-  console.log('   - superadmin (password: SuperAdmin2027!)');
-  console.log('   - admin_ops (password: AdminOps2027!)');
-  console.log('   - admin_finance (password: Finance2027!)');
+  console.log('âœ… Akun Admin berhasil dibuat:');
+
+
+
 
   // 3b. Membuat User Default Pembeli / Pemesan Tiket
   await prisma.user.create({
@@ -192,7 +204,7 @@ async function main() {
       phoneNumber: '081234567890',
     },
   });
-  console.log('✅ User default checkout berhasil dibuat.');
+  console.log('âœ… User default checkout berhasil dibuat.');
 
   // 4. Membuat Event 5K (Fun Run)
   const event5k = await prisma.event.create({
@@ -229,7 +241,7 @@ async function main() {
       },
     },
   });
-  console.log(`✅ Event dibuat: ${event5k.ticketName} (Stok: ${event5k.stock})`);
+  console.log(`âœ… Event dibuat: ${event5k.ticketName} (Stok: ${event5k.stock})`);
 
   // 5. Membuat Event 10K (Competitive)
   const event10k = await prisma.event.create({
@@ -272,7 +284,7 @@ async function main() {
       },
     },
   });
-  console.log(`✅ Event dibuat: ${event10k.ticketName} (Stok: ${event10k.stock})`);
+  console.log(`âœ… Event dibuat: ${event10k.ticketName} (Stok: ${event10k.stock})`);
 
   // 6. Membuat Checkpoint & Titik Kumpul Rute Resmi (RoutePoint)
   const routePointsData = [
@@ -325,7 +337,7 @@ async function main() {
   for (const pt of routePointsData) {
     await prisma.routePoint.create({ data: pt });
   }
-  console.log('✅ 4 Titik Kumpul & Checkpoint Rute Resmi berhasil dibuat di database.');
+  console.log('âœ… 4 Titik Kumpul & Checkpoint Rute Resmi berhasil dibuat di database.');
 
   // 7. Pengaturan Sistem AppSetting (BIB, QR Prefix & Petunjuk Racepack)
   await prisma.appSetting.createMany({
@@ -333,7 +345,7 @@ async function main() {
       {
         key: 'qr_prefix',
         value: 'TEGALRUN',
-        description: 'Awalan / Prefix untuk QR Code E-Tiket (Format: PREFIX|enkripsi_teks)',
+        description: 'Awalan QR E-Tiket baru (format: PREFIX|token_acak_10_digit)',
       },
       {
         key: 'bib_generation_settings',
@@ -371,14 +383,14 @@ async function main() {
       },
     ],
   });
-  console.log('✅ AppSetting (BIB Rules, QR Prefix, Racepack Instructions, Countdown) berhasil diinisialisasi.');
+  console.log('âœ… AppSetting (BIB Rules, QR Prefix, Racepack Instructions, Countdown) berhasil diinisialisasi.');
 
-  console.log('🎉 Seeding database sukses! Sistem siap digunakan.');
+  console.log('ðŸŽ‰ Seeding database sukses! Sistem siap digunakan.');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Terjadi error saat seeding:', e);
+    console.error('âŒ Terjadi error saat seeding:', e);
     process.exit(1);
   })
   .finally(async () => {

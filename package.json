@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "db:seed": "tsx prisma/seed.ts",
+    "db:bootstrap-superadmin": "tsx prisma/bootstrap-superadmin.ts",
     "db:reset-admin": "tsx prisma/reset-and-seed-admin.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -44,6 +45,7 @@
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.10.1",
     "@types/socket.io": "^3.0.2",
     "prisma": "^5.22.0",

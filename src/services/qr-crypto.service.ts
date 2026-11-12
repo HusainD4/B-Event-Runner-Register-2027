@@ -1,9 +1,9 @@
 import crypto from 'crypto';
 import prisma from '../config/database';
+import { env } from '../config/env';
 
 // Secret key untuk enkripsi QR code (32 bytes untuk aes-256-cbc)
-const SECRET_SEED = process.env.JWT_SECRET || 'TEGAL_RUN_2027_QR_SECURITY_SALT_KEY_32B';
-const CIPHER_KEY = crypto.createHash('sha256').update(SECRET_SEED).digest();
+const CIPHER_KEY = crypto.createHash('sha256').update(env.JWT_SECRET).digest();
 const ALGORITHM = 'aes-256-cbc';
 
 export interface SingleQrPayload {
@@ -21,6 +21,42 @@ export interface MasterQrPayload {
 }
 
 export type DecryptedQrPayload = SingleQrPayload | MasterQrPayload;
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
+}
+
+async function getOrCreateQrToken(target: { participantId: string } | { orderId: string }): Promise<string> {
+  const findExisting = () => 'participantId' in target
+    ? prisma.qrToken.findUnique({
+        where: { participantId: target.participantId },
+        select: { token: true },
+      })
+    : prisma.qrToken.findUnique({
+        where: { orderId: target.orderId },
+        select: { token: true },
+      });
+
+  const existing = await findExisting();
+  if (existing) return existing.token;
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const token = String(crypto.randomInt(0, 10_000_000_000)).padStart(10, '0');
+    try {
+      const created = await prisma.qrToken.create({
+        data: { token, ...target },
+        select: { token: true },
+      });
+      return created.token;
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      const concurrentlyCreated = await findExisting();
+      if (concurrentlyCreated) return concurrentlyCreated.token;
+    }
+  }
+
+  throw new Error('Gagal membuat token QR unik setelah beberapa percobaan.');
+}
 
 /**
  * Ambil awalan (prefix) QR code dari database AppSetting
@@ -50,7 +86,7 @@ export async function saveQrPrefix(prefix: string): Promise<string> {
     create: {
       key: 'qr_prefix',
       value: cleanPrefix,
-      description: 'Awalan / Prefix untuk QR Code E-Tiket (Format: PREFIX|enkripsi_teks)',
+      description: 'Awalan QR E-Tiket baru (format: PREFIX|token_acak_10_digit)',
     },
   });
   return cleanPrefix;
@@ -72,8 +108,7 @@ export function encryptQrPayload(payload: DecryptedQrPayload): string {
     return Buffer.from(combined, 'utf8').toString('base64url');
   } catch (err) {
     console.error('encryptQrPayload error:', err);
-    // Fallback: simple base64url encoded
-    return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    throw new Error('Enkripsi payload QR gagal.');
   }
 }
 
@@ -108,34 +143,19 @@ export function decryptQrPayload(encryptedStr: string): DecryptedQrPayload | nul
 }
 
 /**
- * Generate full QR code payload string: BEBASNAMA|enkripsi_teks
+ * Generate a compact, database-backed QR code for one participant.
  */
-export async function generateSingleQrString(
-  orderRef: string,
-  participantId: string,
-  bibNumber: string | null = null,
-  nik: string
-): Promise<string> {
+export async function generateSingleQrString(participantId: string): Promise<string> {
   const prefix = await getQrPrefix();
-  const encrypted = encryptQrPayload({
-    t: 'single',
-    o: orderRef,
-    p: participantId,
-    n: nik,
-  });
-  return `${prefix}|${encrypted}`;
+  const token = await getOrCreateQrToken({ participantId });
+  return `${prefix}|${token}`;
 }
 
 /**
- * Generate Master QR code payload string untuk seluruh peserta dalam 1 order
+ * Generate a compact, database-backed master QR code for one order.
  */
-export async function generateMasterQrString(orderRef: string, count: number): Promise<string> {
+export async function generateMasterQrString(orderId: string): Promise<string> {
   const prefix = await getQrPrefix();
-  const encrypted = encryptQrPayload({
-    t: 'master',
-    o: orderRef,
-    c: count,
-  });
-  return `${prefix}|${encrypted}`;
+  const token = await getOrCreateQrToken({ orderId });
+  return `${prefix}|${token}`;
 }
-

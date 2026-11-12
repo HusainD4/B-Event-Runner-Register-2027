@@ -366,20 +366,23 @@ export async function ensureDefaultRolesInDatabase() {
     const adminCount = await prisma.admin.count();
     if (adminCount === 0) {
       const superRole = await prisma.role.findUnique({ where: { name: 'SUPERADMIN' } });
-      if (superRole) {
-        const defaultHash = await hashPassword('SuperAdmin2027!');
-        await prisma.admin.create({
-          data: {
-            username: 'superadmin',
-            email: 'superadmin@tegalrun.id',
-            password: defaultHash,
-            fullName: 'Super Administrator Utama',
-            roleId: superRole.id,
-            isActive: true,
-          },
-        });
-        console.log('✅ Akun Superadmin default otomatis dibuat: superadmin / SuperAdmin2027!');
+      const initialPassword = process.env.INITIAL_SUPERADMIN_PASSWORD;
+      if (!superRole) throw new Error('Role SUPERADMIN belum tersedia untuk bootstrap akun.');
+      if (!initialPassword || initialPassword.length < 16) {
+        throw new Error('Database belum memiliki admin. Atur INITIAL_SUPERADMIN_PASSWORD (minimal 16 karakter) secara aman untuk membuat akun awal.');
       }
+
+      const passwordHash = await hashPassword(initialPassword);
+      await prisma.admin.create({
+        data: {
+          username: 'superadmin',
+          email: 'superadmin@tegalrun.id',
+          password: passwordHash,
+          fullName: 'Super Administrator Utama',
+          roleId: superRole.id,
+          isActive: true,
+        },
+      });
     }
   } catch (err: any) {
     console.warn('⚠️ Gagal sinkronisasi role default ke database:', err.message);

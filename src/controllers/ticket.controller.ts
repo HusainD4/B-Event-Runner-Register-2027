@@ -267,7 +267,7 @@ export const getETicketData = async (req: Request, res: Response): Promise<any> 
     const rawParam = String(req.params.orderId).trim();
     let targetOrderId = rawParam;
 
-    // Jika parameter berupa format QR BEBASNAMA|enkripsi_teks atau pipe
+    // QR encrypted legacy payloads are still accepted for old tickets.
     if (rawParam.includes('|')) {
       const parts = rawParam.split('|').map((s) => s.trim()).filter(Boolean);
       const cipher = parts.length > 1 ? parts[1] : parts[0];
@@ -327,10 +327,9 @@ export const getETicketData = async (req: Request, res: Response): Promise<any> 
       });
     }
 
-    // Buat encrypted QR payload untuk setiap peserta (nomor BIB tidak diekspos di E-Tiket publik)
-    const orderRef = order.midtransOrderId || order.id;
+    // Buat token QR ringkas untuk setiap peserta (nomor BIB tidak diekspos di E-Tiket publik)
     for (const p of order.participants) {
-      p.qrPayload = await generateSingleQrString(orderRef, p.id, null, p.nik);
+      p.qrPayload = await generateSingleQrString(p.id);
       p.qrImageDataUrl = await QRCode.toDataURL(p.qrPayload, {
         width: 480,
         margin: 4,
@@ -344,7 +343,7 @@ export const getETicketData = async (req: Request, res: Response): Promise<any> 
     let masterQrPayload: string | null = null;
     let masterQrImageDataUrl: string | null = null;
     if (order.participants.length > 1) {
-      masterQrPayload = await generateMasterQrString(orderRef, order.participants.length);
+      masterQrPayload = await generateMasterQrString(order.id);
       masterQrImageDataUrl = await QRCode.toDataURL(masterQrPayload, {
         width: 480,
         margin: 4,
@@ -608,6 +607,16 @@ export const syncMidtransStatus = async (req: Request, res: Response): Promise<a
  */
 export const getOrderSnapToken = async (req: Request, res: Response): Promise<any> => {
   try {
+    const maintenanceSetting = await prisma.appSetting.findUnique({ where: { key: 'maintenance_enabled' } });
+    if (maintenanceSetting?.value === 'true') {
+      const messageSetting = await prisma.appSetting.findUnique({ where: { key: 'maintenance_message' } });
+      return res.status(503).json({
+        status: 'error',
+        code: 'MAINTENANCE_MODE',
+        message: messageSetting?.value || 'Layanan pembayaran sementara tidak tersedia karena website dalam pemeliharaan.'
+      });
+    }
+
     const orderId = req.params.orderId ? String(req.params.orderId) : '';
     if (!orderId) {
       return res.status(400).json({ status: 'error', message: 'Order ID wajib diisi.' });

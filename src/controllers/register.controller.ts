@@ -20,23 +20,46 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
 
     // Periksa apakah pendaftaran ditutup secara global atau per event oleh panitia
     const registrationSettings = await prisma.appSetting.findMany({
-      where: { key: { in: ['IS_REGISTRATION_CLOSED', 'event_registration_closed', 'EVENT_COUNTDOWN_DATE', 'event_countdown_date'] } },
+      where: {
+        key: {
+          in: [
+            'IS_REGISTRATION_CLOSED',
+            'event_registration_closed',
+            'EVENT_COUNTDOWN_DATE',
+            'event_countdown_date',
+            'registration_operating_hours',
+            'registration_closed_message',
+            'maintenance_enabled',
+            'maintenance_message'
+          ]
+        }
+      },
       select: { key: true, value: true },
     });
+    const findRegistrationSetting = (key: string) => registrationSettings.find(setting => setting.key === key)?.value || '';
+    if (findRegistrationSetting('maintenance_enabled') === 'true') {
+      return res.status(503).json({
+        status: 'error',
+        code: 'MAINTENANCE_MODE',
+        message: findRegistrationSetting('maintenance_message') || 'Pendaftaran sedang tidak tersedia karena website dalam pemeliharaan.'
+      });
+    }
     const globalClosedSetting = registrationSettings.find(setting => setting.key === 'IS_REGISTRATION_CLOSED')
       || registrationSettings.find(setting => setting.key === 'event_registration_closed');
     const countdownSetting = registrationSettings.find(setting => setting.key === 'EVENT_COUNTDOWN_DATE')
       || registrationSettings.find(setting => setting.key === 'event_countdown_date');
     const globalTimerPhase = getEventTimerPhase(countdownSetting?.value ? new Date(countdownSetting.value) : null);
     if (globalClosedSetting?.value === 'true' || globalTimerPhase !== 'UPCOMING') {
+      const operatingHours = findRegistrationSetting('registration_operating_hours');
+      const customMessage = findRegistrationSetting('registration_closed_message');
       const closureMessage = globalTimerPhase === 'RACE_DAY'
         ? 'Pendaftaran ditutup otomatis karena acara telah dimulai.'
         : globalTimerPhase === 'COMPLETED'
           ? 'Pendaftaran ditutup karena hari pelaksanaan acara telah lewat.'
-          : 'Pendaftaran Tegal Run 2027 telah resmi ditutup oleh panitia.';
+          : customMessage || 'Pendaftaran Tegal Run 2027 sedang ditutup.';
       return res.status(400).json({ 
         status: "error", 
-        message: closureMessage
+        message: `${closureMessage}${operatingHours ? ` Jam operasional pendaftaran: ${operatingHours}.` : ''}`
       });
     }
 
@@ -176,9 +199,26 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
     // =========================================================================
     const orderResult = await prisma.$transaction(async (tx) => {
       const currentSettings = await tx.appSetting.findMany({
-        where: { key: { in: ['IS_REGISTRATION_CLOSED', 'event_registration_closed', 'EVENT_COUNTDOWN_DATE', 'event_countdown_date'] } },
+        where: {
+          key: {
+            in: [
+              'IS_REGISTRATION_CLOSED',
+              'event_registration_closed',
+              'EVENT_COUNTDOWN_DATE',
+              'event_countdown_date',
+              'registration_operating_hours',
+              'registration_closed_message',
+              'maintenance_enabled',
+              'maintenance_message'
+            ]
+          }
+        },
         select: { key: true, value: true }
       });
+      const findCurrentSetting = (key: string) => currentSettings.find(setting => setting.key === key)?.value || '';
+      if (findCurrentSetting('maintenance_enabled') === 'true') {
+        throw new Error('REGISTRATION_MAINTENANCE');
+      }
       const currentClosedSetting = currentSettings.find(setting => setting.key === 'IS_REGISTRATION_CLOSED')
         || currentSettings.find(setting => setting.key === 'event_registration_closed');
       const currentCountdownSetting = currentSettings.find(setting => setting.key === 'EVENT_COUNTDOWN_DATE')
@@ -187,6 +227,9 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
         currentCountdownSetting?.value ? new Date(currentCountdownSetting.value) : null
       );
       if (currentClosedSetting?.value === 'true' || currentTimerPhase !== 'UPCOMING') {
+        if (currentClosedSetting?.value === 'true' && currentTimerPhase === 'UPCOMING') {
+          throw new Error('REGISTRATION_CLOSED_MANUAL');
+        }
         throw new Error(currentTimerPhase === 'RACE_DAY'
           ? 'REGISTRATION_CLOSED_RACE_DAY'
           : currentTimerPhase === 'COMPLETED'
@@ -389,7 +432,23 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
       return res.status(400).json({ status: 'error', message: 'Kategori tiket telah ditutup oleh panitia.' });
     }
     if (error.message === 'REGISTRATION_CLOSED_MANUAL') {
-      return res.status(400).json({ status: 'error', message: 'Pendaftaran telah ditutup oleh panitia.' });
+      const [hoursSetting, messageSetting] = await Promise.all([
+        prisma.appSetting.findUnique({ where: { key: 'registration_operating_hours' } }),
+        prisma.appSetting.findUnique({ where: { key: 'registration_closed_message' } })
+      ]);
+      const hours = hoursSetting?.value;
+      return res.status(400).json({
+        status: 'error',
+        message: `${messageSetting?.value || 'Pendaftaran sedang ditutup.'}${hours ? ` Jam operasional pendaftaran: ${hours}.` : ''}`
+      });
+    }
+    if (error.message === 'REGISTRATION_MAINTENANCE') {
+      const maintenanceMessage = await prisma.appSetting.findUnique({ where: { key: 'maintenance_message' } });
+      return res.status(503).json({
+        status: 'error',
+        code: 'MAINTENANCE_MODE',
+        message: maintenanceMessage?.value || 'Pendaftaran sedang tidak tersedia karena website dalam pemeliharaan.'
+      });
     }
     
     console.error("🚨 [ERROR] Register Controller:", error);

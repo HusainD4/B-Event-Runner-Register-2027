@@ -3,6 +3,12 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import prisma from '../config/database';
 import { env } from '../config/env';
+import {
+  ADMIN_SESSION_COOKIE,
+  ADMIN_SESSION_MAX_AGE,
+  adminSessionClearOptions,
+  adminSessionCookieOptions,
+} from '../config/admin-session';
 import { verifyPassword, hashPassword } from '../utils/password';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 
@@ -82,6 +88,7 @@ export const adminLogin = async (req: AuthenticatedRequest, res: Response): Prom
     const token = jwt.sign(tokenPayload, env.JWT_SECRET, {
       expiresIn: '24h',
     });
+    res.cookie(ADMIN_SESSION_COOKIE, token, adminSessionCookieOptions);
 
     // Catat log login
     await prisma.log.create({
@@ -98,7 +105,6 @@ export const adminLogin = async (req: AuthenticatedRequest, res: Response): Prom
       status: 'success',
       message: 'Login berhasil.',
       data: {
-        token,
         admin: {
           id: admin.id,
           username: admin.username,
@@ -126,6 +132,11 @@ export const adminLogin = async (req: AuthenticatedRequest, res: Response): Prom
       message: error?.message || 'Terjadi kesalahan pada server saat proses login.',
     });
   }
+};
+
+export const adminLogout = (_req: AuthenticatedRequest, res: Response): any => {
+  res.clearCookie(ADMIN_SESSION_COOKIE, adminSessionClearOptions);
+  return res.status(200).json({ status: 'success', message: 'Logout berhasil.' });
 };
 
 /**

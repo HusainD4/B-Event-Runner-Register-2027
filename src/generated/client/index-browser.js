@@ -160,6 +160,7 @@ exports.Prisma.JerseyScalarFieldEnum = {
   type: 'type',
   sizes: 'sizes',
   image: 'image',
+  bannerImages: 'bannerImages',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -196,6 +197,13 @@ exports.Prisma.ParticipantScalarFieldEnum = {
   selectedSize: 'selectedSize',
   communityName: 'communityName',
   bibNumber: 'bibNumber',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.QrTokenScalarFieldEnum = {
+  token: 'token',
+  participantId: 'participantId',
+  orderId: 'orderId',
   createdAt: 'createdAt'
 };
 
@@ -319,6 +327,7 @@ exports.Prisma.ModelName = {
   Jersey: 'Jersey',
   Order: 'Order',
   Participant: 'Participant',
+  QrToken: 'QrToken',
   Log: 'Log',
   BibConfiguration: 'BibConfiguration',
   Role: 'Role',

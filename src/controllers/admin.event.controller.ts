@@ -4,6 +4,15 @@ import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import { getEventRegistrationStatus } from '../utils/event-timing';
 
+const jerseyBannerImagesSchema = z.array(z.string().url().refine(value => {
+  try {
+    return ['http:', 'https:'].includes(new URL(value).protocol);
+  } catch {
+    return false;
+  }
+})).max(5, 'Maksimal 5 banner gambar jersey')
+  .transform(images => [...new Set(images)]);
+
 const createEventSchema = z.object({
   ticketName: z.string().min(3, 'Nama tiket minimal 3 karakter'),
   category: z.string().min(2, 'Kategori minimal 2 karakter'),
@@ -24,6 +33,7 @@ const createEventSchema = z.object({
     type: z.string().min(2),
     sizes: z.array(z.string()).min(1),
     image: z.string().url().nullable().optional(),
+    bannerImages: jerseyBannerImagesSchema.optional(),
   })).optional(),
   bibConfig: z.object({
     prefix: z.string().min(1),
@@ -36,7 +46,7 @@ const createEventSchema = z.object({
 const updateEventSchema = z.object({
   ticketName: z.string().min(3).optional(),
   category: z.string().min(2).optional(),
-  stock: z.number().int().positive().optional(),
+  stock: z.number().int().nonnegative().optional(),
   price: z.number().nonnegative().optional(),
   ticketImage: z.string().url().nullable().optional(),
   medalImage: z.string().url().nullable().optional(),
@@ -62,6 +72,7 @@ const jerseySchema = z.object({
       return false;
     }
   }).nullable().optional(),
+  bannerImages: jerseyBannerImagesSchema.optional(),
   eventId: z.string().uuid('Event ID tidak valid').optional(),
 });
 
@@ -413,7 +424,7 @@ export const createJersey = async (req: AuthenticatedRequest, res: Response): Pr
       return res.status(400).json({ status: 'error', message: 'Validasi jersey gagal.' });
     }
 
-    const { eventId, name, type, sizes, image } = parseResult.data;
+    const { eventId, name, type, sizes, image, bannerImages = [] } = parseResult.data;
     if (!eventId) {
       return res.status(400).json({ status: 'error', message: 'Event ID wajib disertakan.' });
     }
@@ -421,7 +432,14 @@ export const createJersey = async (req: AuthenticatedRequest, res: Response): Pr
     if (!event) return res.status(404).json({ status: 'error', message: 'Kategori event tidak ditemukan.' });
 
     const jersey = await prisma.jersey.create({
-      data: { eventId, name: name.trim(), type: type.trim(), sizes: [...new Set(sizes.map(size => size.trim()))], image: image || null },
+      data: {
+        eventId,
+        name: name.trim(),
+        type: type.trim(),
+        sizes: [...new Set(sizes.map(size => size.trim()))],
+        image: image || null,
+        bannerImages: [...new Set(bannerImages)],
+      },
     });
 
     await prisma.log.create({

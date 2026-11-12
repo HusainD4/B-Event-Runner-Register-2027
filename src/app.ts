@@ -15,7 +15,7 @@ import { emitDataChanged } from './sockets';
 // Inisialisasi Aplikasi Express
 const app = express();
 
-const getChangedTopics = (path: string): string[] => {
+const getChangedTopics = (path: string, body: Record<string, unknown> = {}): string[] => {
   path = path.replace(/^\/api(?=\/|$)/, '');
   if (path.startsWith('/webhook') || path.startsWith('/register') || path.startsWith('/orders/')) {
     return ['dashboard', 'orders', 'participants', 'racepack', 'notif-logs', 'logs', 'public:events'];
@@ -27,7 +27,13 @@ const getChangedTopics = (path: string): string[] => {
   if (path.includes('/participants')) return ['participants', 'racepack', 'dashboard', 'logs'];
   if (path.includes('/orders') || path.includes('/finance')) return ['orders', 'dashboard', 'participants', 'logs'];
   if (path.includes('/racepack')) return ['racepack', 'participants', 'dashboard', 'logs'];
-  if (path.includes('/settings/countdown')) return ['countdown', 'public:countdown', 'events', 'public:events'];
+  if (path.includes('/settings/countdown')) {
+    const topics = ['countdown', 'public:countdown'];
+    if (body.eventCountdownDate !== undefined || body.isRegistrationClosed !== undefined) {
+      topics.push('events', 'public:events');
+    }
+    return topics;
+  }
   if (path.includes('/settings/website')) return ['cms', 'public:cms'];
   if (path.includes('/routes')) return ['routes', 'public:routes'];
   if (path.includes('/notifications')) return ['notifications', 'notif-logs', 'whatsapp-web'];
@@ -40,7 +46,7 @@ const emitChangesAfterSuccessfulMutation: express.RequestHandler = (req, res, ne
 
   res.on('finish', () => {
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      emitDataChanged(getChangedTopics(req.path));
+      emitDataChanged(getChangedTopics(req.path, req.body));
     }
   });
   next();

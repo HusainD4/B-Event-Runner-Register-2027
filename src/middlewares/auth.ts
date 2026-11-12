@@ -2,6 +2,8 @@ import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import prisma from '../config/database';
+import { ADMIN_SESSION_COOKIE, adminSessionClearOptions, readCookie } from '../config/admin-session';
+import { isAllowedOrigin } from '../config/cors';
 
 export interface AdminTokenPayload {
   adminId: string;
@@ -23,23 +25,30 @@ export interface AuthenticatedRequest extends Request {
 }
 
 /**
- * Middleware untuk memverifikasi token JWT Admin pada header Authorization
+ * Middleware untuk memverifikasi sesi admin dari cookie HttpOnly
  */
 export const verifyAuthToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<any> => {
-  try {
-    const authHeader = req.headers.authorization;
+  const cookieToken = readCookie(req.headers.cookie, ADMIN_SESSION_COOKIE);
+  const token = cookieToken;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (cookieToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    if (!isAllowedOrigin(req.headers.origin)) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Asal permintaan tidak diizinkan.',
+      });
+    }
+  }
+
+  try {
+    if (!token) {
       return res.status(401).json({
         status: 'error',
         message: 'Akses ditolak: Token autentikasi tidak ditemukan atau format salah.',
       });
     }
 
-    const token = authHeader.split(' ')[1];
-    const secret = env.JWT_SECRET || 'fallback-secret';
-
-    const decoded = jwt.verify(token, secret) as any;
+    const decoded = jwt.verify(token, env.JWT_SECRET) as any;
 
     // Jika payload adalah token Admin
     if (decoded.adminId) {
@@ -50,12 +59,14 @@ export const verifyAuthToken = async (req: AuthenticatedRequest, res: Response, 
       });
 
       if (!adminInDb || !adminInDb.isActive) {
+        if (cookieToken) res.clearCookie(ADMIN_SESSION_COOKIE, adminSessionClearOptions);
         return res.status(401).json({
           status: 'error',
           message: 'Akun admin telah dinonaktifkan atau tidak ditemukan.',
         });
       }
       if (Number(decoded.tokenVersion ?? 0) !== adminInDb.tokenVersion) {
+        if (cookieToken) res.clearCookie(ADMIN_SESSION_COOKIE, adminSessionClearOptions);
         return res.status(401).json({
           status: 'error',
           message: 'Sesi admin telah dicabut oleh Superadmin. Silakan login kembali.',
@@ -89,6 +100,7 @@ export const verifyAuthToken = async (req: AuthenticatedRequest, res: Response, 
     req.user = decoded;
     return next();
   } catch (error) {
+    if (cookieToken) res.clearCookie(ADMIN_SESSION_COOKIE, adminSessionClearOptions);
     return res.status(403).json({
       status: 'error',
       message: 'Sesi kedaluwarsa atau token tidak valid. Silakan login kembali.',
