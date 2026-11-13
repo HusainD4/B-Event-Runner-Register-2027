@@ -194,6 +194,14 @@ export const SYSTEM_MODULES = [
     apiPermissions: ['admins:manage'],
   },
   {
+    key: 'page:role-monitoring',
+    label: 'Pemantauan Semua Role',
+    group: 'KONFIGURASI',
+    icon: 'fa-users-viewfinder',
+    desc: 'Pantau sesi online seluruh role dan cabut sesi akun admin',
+    apiPermissions: [],
+  },
+  {
     key: 'page:logs',
     label: 'Log Audit Sistem',
     group: 'KONFIGURASI',
@@ -210,7 +218,7 @@ export const DEFAULT_SYSTEM_ROLES = [
   {
     name: 'SUPERADMIN',
     description: 'Pemegang kendali tertinggi seluruh sistem, server, database, dan konfigurasi hak akses.',
-    pages: ['page:dashboard', 'page:events', 'page:participants', 'page:racepack', 'page:racepack-view', 'page:orders', 'page:notif-logs', 'page:whatsapp-web', 'page:bib-settings', 'page:cms', 'page:countdown', 'page:notifications', 'page:routes', 'page:admins', 'page:logs'],
+    pages: ['page:dashboard', 'page:events', 'page:participants', 'page:racepack', 'page:racepack-view', 'page:orders', 'page:notif-logs', 'page:whatsapp-web', 'page:bib-settings', 'page:cms', 'page:countdown', 'page:notifications', 'page:routes', 'page:admins', 'page:role-monitoring', 'page:logs'],
     permissions: ['*', 'dashboard:configured', 'dashboard:participants', 'dashboard:revenue', 'dashboard:service-fee', 'dashboard:net-revenue', 'dashboard:finance-breakdown', 'dashboard:registration-trend', 'dashboard:revenue-trend', 'dashboard:payment-status', 'dashboard:conversion', 'dashboard:event-performance', 'dashboard:category-performance', 'dashboard:participant-profile', 'dashboard:jersey-sizes', 'dashboard:racepack-checkin', 'dashboard:team-presence', 'dashboard:recent-orders', 'dashboard:recent-activity', 'dashboard:quicklinks'],
   },
   {
@@ -560,8 +568,12 @@ export const createRole = async (req: AuthenticatedRequest, res: Response): Prom
     if (name !== 'SUPERADMIN' && !permissions.some(permission => permission.startsWith('page:'))) {
       return res.status(400).json({ status: 'error', message: 'Role harus memiliki minimal satu halaman yang diizinkan.' });
     }
-    if (name !== 'SUPERADMIN' && (permissions.includes('admins:manage') || permissions.includes('page:admins'))) {
-      return res.status(400).json({ status: 'error', message: 'Pengelolaan akun dan role hanya dapat diberikan kepada role SUPERADMIN.' });
+    if (name !== 'SUPERADMIN' && (
+      permissions.includes('admins:manage')
+      || permissions.includes('page:admins')
+      || permissions.includes('page:role-monitoring')
+    )) {
+      return res.status(400).json({ status: 'error', message: 'Pengelolaan admin dan pemantauan semua role hanya dapat diberikan kepada role SUPERADMIN.' });
     }
 
     const existingRole = await prisma.role.findUnique({ where: { name } });
@@ -627,8 +639,12 @@ export const updateRole = async (req: AuthenticatedRequest, res: Response): Prom
       !parseResult.data.permissions.some(permission => permission.startsWith('page:'))) {
       return res.status(400).json({ status: 'error', message: 'Role harus memiliki minimal satu halaman yang diizinkan.' });
     }
-    if (updatedRoleName !== 'SUPERADMIN' && (parseResult.data.permissions?.includes('admins:manage') || parseResult.data.permissions?.includes('page:admins'))) {
-      return res.status(400).json({ status: 'error', message: 'Pengelolaan akun dan role hanya dapat diberikan kepada role SUPERADMIN.' });
+    if (updatedRoleName !== 'SUPERADMIN' && parseResult.data.permissions && (
+      parseResult.data.permissions.includes('admins:manage')
+      || parseResult.data.permissions.includes('page:admins')
+      || parseResult.data.permissions.includes('page:role-monitoring')
+    )) {
+      return res.status(400).json({ status: 'error', message: 'Pengelolaan admin dan pemantauan semua role hanya dapat diberikan kepada role SUPERADMIN.' });
     }
 
     const updatedRole = await prisma.role.update({
