@@ -3,6 +3,13 @@ import prisma from '../config/database';
 import { emitStockUpdate } from '../sockets/index';
 import { sendOrderNotification } from '../services/notification.service';
 
+function amountInMinorUnits(value: unknown): bigint | null {
+  const amount = String(value);
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(amount);
+  if (!match) return null;
+  return BigInt(match[1]) * 100n + BigInt((match[2] || '').padEnd(2, '0') || '0');
+}
+
 /**
  * Controller untuk menangani notifikasi webhook dari server Midtrans secara otomatis.
  */
@@ -29,38 +36,60 @@ export const handleMidtransWebhook = async (req: Request, res: Response): Promis
       return res.status(404).json({ status: 'error', message: `Order dengan ID ${order_id} tidak ditemukan di database.` });
     }
 
-    let newStatus: any = order.status;
+    if (amountInMinorUnits(gross_amount) !== amountInMinorUnits(order.totalAmount)) {
+      console.error(`[WEBHOOK SECURITY] Nominal Midtrans tidak cocok untuk order ${order.id}.`);
+      return res.status(403).json({ status: 'error', message: 'Nominal transaksi tidak cocok dengan pesanan.' });
+    }
+
+    let requestedStatus: typeof order.status | null = null;
 
     // Tentukan status berdasarkan respons Midtrans
     if (transaction_status === 'capture') {
       if (fraud_status === 'challenge') {
-        newStatus = 'PENDING';
+        requestedStatus = 'PENDING';
       } else if (fraud_status === 'accept') {
-        newStatus = 'SETTLEMENT';
+        requestedStatus = 'SETTLEMENT';
       }
     } else if (transaction_status === 'settlement') {
-      newStatus = 'SETTLEMENT';
+      requestedStatus = 'SETTLEMENT';
     } else if (transaction_status === 'pending') {
-      newStatus = 'PENDING';
+      requestedStatus = 'PENDING';
     } else if (transaction_status === 'deny') {
-      newStatus = 'DENY';
+      requestedStatus = 'DENY';
     } else if (transaction_status === 'expire') {
-      newStatus = 'EXPIRE';
+      requestedStatus = 'EXPIRE';
     } else if (transaction_status === 'cancel') {
-      newStatus = 'CANCEL';
+      requestedStatus = 'CANCEL';
     } else if (transaction_status === 'refund') {
-      newStatus = 'REFUND';
+      requestedStatus = 'REFUND';
     }
 
     // Gunakan transaksi database untuk memperbarui status order & mengembalikan kuota jika dibatalkan/kadaluarsa
-    const restoredStock = await prisma.$transaction(async (tx) => {
-      const update = await tx.order.updateMany({
-        where: { id: order.id, status: order.status },
-        data: { status: newStatus },
-      });
+    const result = await prisma.$transaction(async (tx) => {
+      const currentStatus = order.status;
+      const settledStatuses = ['SETTLEMENT', 'CAPTURE'];
+      const closedStatuses = ['CANCEL', 'EXPIRE', 'DENY', 'REFUND'];
+      const lateSettlement = !!requestedStatus && settledStatuses.includes(requestedStatus) &&
+        closedStatuses.includes(currentStatus);
+      const mayTransition = requestedStatus !== null &&
+        ((currentStatus === 'PENDING' &&
+          ['PENDING', 'SETTLEMENT', 'CANCEL', 'EXPIRE', 'DENY'].includes(requestedStatus)) ||
+          (settledStatuses.includes(currentStatus) && requestedStatus === 'REFUND'));
+      const nextStatus = lateSettlement || !mayTransition || !requestedStatus || requestedStatus === currentStatus
+        ? currentStatus
+        : requestedStatus;
+      let changed = false;
 
       const stockUpdates: Array<{ eventId: string; stock: number }> = [];
-      if (update.count === 1 && order.status === 'PENDING' && ['CANCEL', 'EXPIRE', 'DENY'].includes(newStatus)) {
+      if (nextStatus !== currentStatus) {
+        const update = await tx.order.updateMany({
+          where: { id: order.id, status: currentStatus },
+          data: { status: nextStatus },
+        });
+        changed = update.count === 1;
+      }
+
+      if (changed && currentStatus === 'PENDING' && ['CANCEL', 'EXPIRE', 'DENY'].includes(nextStatus)) {
         const eventCounts = new Map<string, number>();
         for (const participant of order.participants) {
           eventCounts.set(participant.eventId, (eventCounts.get(participant.eventId) || 0) + 1);
@@ -75,7 +104,7 @@ export const handleMidtransWebhook = async (req: Request, res: Response): Promis
         }
       }
 
-      if (['SETTLEMENT', 'CAPTURE', 'CANCEL', 'EXPIRE', 'DENY', 'REFUND'].includes(newStatus)) {
+      if (changed && ['SETTLEMENT', 'CAPTURE', 'CANCEL', 'EXPIRE', 'DENY', 'REFUND'].includes(nextStatus)) {
         await tx.appSetting.deleteMany({ where: { key: `payment_expiry_${order.id}` } });
       }
 
@@ -83,22 +112,24 @@ export const handleMidtransWebhook = async (req: Request, res: Response): Promis
       await tx.log.create({
         data: {
           action: 'WEBHOOK_NOTIFICATION_RECEIVED',
-          description: `Midtrans webhook untuk order ${order_id} mengubah status menjadi ${newStatus}`,
+          description: lateSettlement
+            ? `PEMERIKSAAN MANUAL: Midtrans melaporkan pembayaran ${requestedStatus} untuk order ${order_id} yang sudah berstatus ${currentStatus}. Kuota tidak dibuka kembali otomatis.`
+            : `Midtrans webhook untuk order ${order_id}: ${changed ? `status menjadi ${nextStatus}` : `status tetap ${currentStatus}`}.`,
           entityType: 'Order',
           entityId: order.id,
           metadata: { transaction_status, fraud_status, gross_amount },
         },
       });
-      return stockUpdates;
+      return { stockUpdates, changed, nextStatus };
     });
-    for (const update of restoredStock) emitStockUpdate(update.eventId, update.stock);
+    for (const update of result.stockUpdates) emitStockUpdate(update.eventId, update.stock);
 
-    // Kirim notifikasi WhatsApp/Email secara asinkron
-    if (newStatus === 'SETTLEMENT') {
+    // Only the transaction that changes the order may trigger a notification.
+    if (result.changed && result.nextStatus === 'SETTLEMENT') {
       sendOrderNotification({ orderId: order.id, type: 'PAID' }).catch((err) =>
         console.warn('⚠️ Webhook notification dispatch failed:', err.message)
       );
-    } else if (['CANCEL', 'EXPIRE', 'DENY'].includes(newStatus)) {
+    } else if (result.changed && ['CANCEL', 'EXPIRE', 'DENY'].includes(result.nextStatus)) {
       sendOrderNotification({ orderId: order.id, type: 'CANCEL' }).catch((err) =>
         console.warn('⚠️ Webhook cancel notification dispatch failed:', err.message)
       );

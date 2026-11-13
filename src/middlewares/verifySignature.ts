@@ -16,7 +16,13 @@ export const verifyMidtransSignature = (req: Request, res: Response, next: NextF
       return next();
     }
 
-    if (!order_id || !status_code || !gross_amount || !signature_key) {
+    if (
+      typeof order_id !== 'string' || order_id.length === 0 ||
+      typeof status_code !== 'string' || status_code.length === 0 ||
+      (typeof gross_amount !== 'string' && typeof gross_amount !== 'number') ||
+      !Number.isFinite(Number(gross_amount)) ||
+      typeof signature_key !== 'string' || !/^[a-f\d]{128}$/i.test(signature_key)
+    ) {
       return res.status(400).json({
         status: 'error',
         message: 'Payload webhook Midtrans tidak lengkap (parameter verifikasi hilang).',
@@ -33,7 +39,9 @@ export const verifyMidtransSignature = (req: Request, res: Response, next: NextF
       .digest('hex');
 
     // Bandingkan signature yang dihitung dengan yang dikirim oleh Midtrans
-    if (computedSignatureKey !== signature_key) {
+    const expected = Buffer.from(computedSignatureKey, 'hex');
+    const received = Buffer.from(signature_key, 'hex');
+    if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) {
       console.error('🚨 [SECURITY WARNING] Signature key Midtrans tidak valid!');
       return res.status(403).json({
         status: 'error',

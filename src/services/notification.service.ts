@@ -40,6 +40,16 @@ function compileTemplate(template: string, data: Record<string, any>): string {
   return result;
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character] || character);
+}
+
 /**
  * Mengirim notifikasi otomatis (WhatsApp & Email) untuk transaksi & tiket
  */
@@ -215,7 +225,7 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
               <h2 style="margin: 0; font-size: 1.4rem;">TEGAL RUN 2026</h2>
               <p style="margin: 4px 0 0; font-size: 0.9rem; opacity: 0.9;">Notifikasi Resmi Tiket & Pembayaran</p>
             </div>
-            <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.95rem;">${messageBody}</pre>
+            <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.95rem;">${escapeHtml(messageBody)}</pre>
             <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #E2E8F0; font-size: 0.8rem; color: #64748B; text-align: center;">
               Pesan ini dikirim secara otomatis oleh Sistem Portal Resmi Tegal Run 2026.
             </div>
