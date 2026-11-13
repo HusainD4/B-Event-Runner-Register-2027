@@ -422,7 +422,7 @@ export class WhatsAppSessionService {
   /**
    * Mengirim pesan teks langsung ke nomor tujuan via Baileys
    */
-  async sendMessage(phoneNumber: string, message: string): Promise<boolean> {
+  private async getRecipientJid(phoneNumber: string): Promise<string> {
     if (this.sessionError) throw new Error(this.sessionError);
     if (!this.sock || this.currentStatus !== 'CONNECTED') {
       if (this.hasStoredCredentials()) {
@@ -439,10 +439,25 @@ export class WhatsAppSessionService {
     if (clean.startsWith('0')) clean = '62' + clean.slice(1);
     if (!clean.startsWith('62')) clean = '62' + clean;
 
-    const jid = `${clean}@s.whatsapp.net`;
+    return `${clean}@s.whatsapp.net`;
+  }
 
+  async sendMessage(phoneNumber: string, message: string): Promise<boolean> {
+    const jid = await this.getRecipientJid(phoneNumber);
+    if (!this.sock) throw new Error('WhatsApp Web belum terhubung.');
     await this.sock.sendMessage(jid, { text: message });
+    return true;
+  }
 
+  async sendPdf(phoneNumber: string, pdf: Buffer, filename: string): Promise<boolean> {
+    const jid = await this.getRecipientJid(phoneNumber);
+    if (!this.sock) throw new Error('WhatsApp Web belum terhubung.');
+    await this.sock.sendMessage(jid, {
+      document: pdf,
+      mimetype: 'application/pdf',
+      fileName: filename,
+      caption: 'E-Tiket resmi Anda terlampir.',
+    });
     return true;
   }
 

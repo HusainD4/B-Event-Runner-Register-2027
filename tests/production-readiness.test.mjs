@@ -39,6 +39,7 @@ test('built server resolves its imports and fails closed if MySQL is unavailable
   assert.equal(code, 1, output);
   assert.match(output, /SERVER STARTUP ERROR/);
   assert.doesNotMatch(output, /ERR_MODULE_NOT_FOUND|Cannot find module/);
+  assert.doesNotMatch(output, /P6001|URL must start with the protocol [`'"]?prisma:\/\//);
 });
 
 test('API readiness checks MySQL and reports unavailable when it fails', async () => {

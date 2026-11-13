@@ -1,8 +1,12 @@
 import axios from 'axios';
-import nodemailer from 'nodemailer';
 import prisma from '../config/database';
 import { whatsappSessionService } from './whatsapp-session.service';
 import { allowedOrigins } from '../config/cors';
+import { createEmailTransport } from './email.service';
+import { queuePdfDeliveries } from './pdf-delivery.service';
+import { DEFAULT_EMAIL_TEMPLATES } from './email-templates';
+import { DEFAULT_WEBSITE_SETTINGS } from '../controllers/settings.controller';
+import { sendWithWhatsAppHistory } from './whatsapp-history.service';
 
 export interface NotificationPayload {
   orderId: string;
@@ -34,8 +38,7 @@ function resolveSiteBaseUrl(siteOrigin?: string): string {
 function compileTemplate(template: string, data: Record<string, any>): string {
   let result = template;
   for (const [key, value] of Object.entries(data)) {
-    const regex = new RegExp(`{${key}}`, 'g');
-    result = result.replace(regex, value != null ? String(value) : '');
+    result = result.split(`{${key}}`).join(value != null ? String(value) : '');
   }
   return result;
 }
@@ -57,6 +60,7 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
   whatsappSent: boolean;
   emailSent: boolean;
   isManualPending?: boolean;
+  pdfQueued?: boolean;
   errors: string[];
 }> {
   const errors: string[] = [];
@@ -86,6 +90,7 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
         key: {
           in: [
             'notif_channel',
+            'pdf_delivery_channel',
             'wa_dispatch_mode', // 'AUTO' atau 'MANUAL'
             'wa_gateway_url',
             'wa_api_token',
@@ -95,9 +100,13 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
             'email_smtp_user',
             'email_smtp_pass',
             'email_from_name',
+            'navbar_title',
             'template_msg_paid',
             'template_msg_pending',
             'template_msg_cancel',
+            'template_email_paid',
+            'template_email_pending',
+            'template_email_cancel',
           ],
         },
       },
@@ -141,8 +150,12 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
     }
 
     const channel = cfg.notif_channel || 'WA'; // 'WA', 'EMAIL', 'BOTH', 'DISABLED'
+    let pdfQueued = false;
+    if (payload.type === 'PAID' && ['SETTLEMENT', 'CAPTURE'].includes(order.status)) {
+      pdfQueued = await queuePdfDeliveries(order.id, cfg.pdf_delivery_channel || 'DISABLED', !!payload.isManualTrigger);
+    }
     if (channel === 'DISABLED') {
-      return { whatsappSent: false, emailSent: false, errors: ['Notifikasi dinonaktifkan di pengaturan admin.'] };
+      return { whatsappSent: false, emailSent: false, pdfQueued, errors: ['Notifikasi teks dinonaktifkan di pengaturan admin.'] };
     }
 
     const firstP = order.participants[0];
@@ -159,6 +172,7 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
 
     const templateData: Record<string, any> = {
       fullName: recipientName,
+      eventName: cfg.navbar_title?.trim() || DEFAULT_WEBSITE_SETTINGS.navbar_title,
       ticketName,
       bibNumber: bibNumbers,
       orderId: order.midtransOrderId || order.id,
@@ -174,7 +188,7 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
     // Default template pesan otomatis lengkap dengan status pembayaran, link file E-Tiket PDF, dan ucapan terima kasih
     const defaultTemplates = {
       PAID: `Halo {fullName}! 🏃‍♂️🎉\n\nTerima kasih banyak telah menyelesaikan pembayaran pendaftaran Tegal Run 2026. Pembayaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah BERHASIL diverifikasi dan LUNAS!\n\n📋 Detail Registrasi:\n• Kategori: {ticketName}\n• Nomor BIB Dada: {bibNumber}\n• Status Pembayaran: LUNAS (SETTLEMENT)\n\n📄 File E-Tiket Resmi (PDF):\nSilakan unduh dan simpan berkas E-Tiket resmi Anda melalui tautan berikut:\n👉 {eTicketUrl}\n\n🙏 Ucapan Terima Kasih:\nPanitia Tegal Run 2026 mengucapkan selamat bergabung kepada {fullName}! Persiapkan fisik dan stamina terbaik Anda. Sampai jumpa di garis start Alun-Alun Kota Tegal!\n\nSalam Hangat,\nPanitia Pelaksana Tegal Run 2026`,
-      PENDING: `Halo {fullName}! 👋\n\nPendaftaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah kami terima dan saat ini sedang MENUNGGU PEMBAYARAN.\n\nSegera selesaikan transaksi Anda sebelum batas waktu habis melalui tautan pembayaran resmi berikut:\n👉 {paymentUrl}\n\nSetelah pembayaran terverifikasi, sistem akan otomatis mengirimkan E-Tiket resmi dalam format digital PDF beserta nomor BIB Anda.\n\nTerima kasih,\nPanitia Tegal Run 2026`,
+      PENDING: `Halo {fullName}! 👋\n\nPendaftaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah kami terima dan saat ini sedang MENUNGGU PEMBAYARAN.\n\nSegera selesaikan transaksi Anda sebelum batas waktu habis melalui tautan pembayaran resmi berikut:\n👉 {paymentUrl}\n\nSetelah pembayaran terverifikasi, E-Tiket dapat dibuka dan disimpan sebagai PDF melalui halaman E-Tiket.\n\nTerima kasih,\nPanitia Tegal Run 2026`,
       CANCEL: `Halo {fullName},\n\nPesanan tiket {ticketName} (Order ID: {orderId}) telah DIBATALKAN. Kuota tiket telah dilepaskan kembali ke sistem.\n\nJika ingin mendaftar kembali, silakan kunjungi website resmi Tegal Run 2026.`,
     };
 
@@ -186,11 +200,13 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
     } else {
       messageBody = compileTemplate(cfg.template_msg_cancel || defaultTemplates.CANCEL, templateData);
     }
+    const emailTemplate = cfg[`template_email_${payload.type.toLowerCase()}`] ?? DEFAULT_EMAIL_TEMPLATES[payload.type];
+    const emailBody = emailTemplate ? compileTemplate(emailTemplate, templateData) : messageBody;
 
     // 3. Eksekusi Pengiriman WhatsApp Langsung dari Backend (Tanpa Pihak Ketiga)
     if ((channel === 'WA' || channel === 'BOTH') && recipientPhone) {
       try {
-        await whatsappSessionService.sendMessage(recipientPhone, messageBody);
+        await sendWithWhatsAppHistory(order.id, messageBody, 'TEXT', () => whatsappSessionService.sendMessage(recipientPhone, messageBody));
         whatsappSent = true;
       } catch (waErr: any) {
         console.warn('⚠️ [WA DIRECT SEND ERROR]:', waErr.message);
@@ -199,22 +215,15 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
     }
 
     // 4. Eksekusi Pengiriman Email jika channel EMAIL atau BOTH
-    if ((channel === 'EMAIL' || channel === 'BOTH') && recipientEmail && cfg.email_smtp_host) {
+    if (channel === 'EMAIL' || channel === 'BOTH') {
       try {
-        const transporter = nodemailer.createTransport({
-          host: cfg.email_smtp_host,
-          port: parseInt(cfg.email_smtp_port || '587', 10),
-          secure: parseInt(cfg.email_smtp_port || '587', 10) === 465,
-          auth: {
-            user: cfg.email_smtp_user,
-            pass: cfg.email_smtp_pass,
-          },
-        });
+        if (!recipientEmail) throw new Error('Alamat email penerima tidak tersedia.');
+        const transporter = createEmailTransport(cfg);
 
         const fromName = cfg.email_from_name || 'Tegal Run 2026';
         const subject =
           payload.type === 'PAID'
-            ? `✅ E-Tiket Resmi Lunas & Berkas PDF: ${ticketName} - ${recipientName}`
+            ? `✅ E-Tiket Resmi Lunas: ${ticketName} - ${recipientName}`
             : payload.type === 'PENDING'
             ? `⏳ Menunggu Pembayaran: ${ticketName} - ${recipientName}`
             : `❌ Pesanan Dibatalkan: ${ticketName} - ${recipientName}`;
@@ -222,12 +231,12 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
         const htmlBody = `
           <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1E293B; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E2E8F0; border-radius: 8px;">
             <div style="background: #FF6B00; color: #FFF; padding: 16px; border-radius: 6px; text-align: center; margin-bottom: 20px;">
-              <h2 style="margin: 0; font-size: 1.4rem;">TEGAL RUN 2026</h2>
+              <h2 style="margin: 0; font-size: 1.4rem;">${escapeHtml(templateData.eventName)}</h2>
               <p style="margin: 4px 0 0; font-size: 0.9rem; opacity: 0.9;">Notifikasi Resmi Tiket & Pembayaran</p>
             </div>
-            <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.95rem;">${escapeHtml(messageBody)}</pre>
+            <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.95rem;">${escapeHtml(emailBody)}</pre>
             <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #E2E8F0; font-size: 0.8rem; color: #64748B; text-align: center;">
-              Pesan ini dikirim secara otomatis oleh Sistem Portal Resmi Tegal Run 2026.
+              Pesan ini dikirim secara otomatis oleh sistem resmi ${escapeHtml(templateData.eventName)}.
             </div>
           </div>
         `;
@@ -236,7 +245,7 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
           from: `"${fromName}" <${cfg.email_smtp_user}>`,
           to: recipientEmail,
           subject,
-          text: messageBody,
+          text: emailBody,
           html: htmlBody,
         });
         emailSent = true;
@@ -272,7 +281,7 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
       },
     });
 
-    return { whatsappSent, emailSent, isManualPending: false, errors };
+    return { whatsappSent, emailSent, pdfQueued, isManualPending: false, errors };
   } catch (err: any) {
     console.error('🚨 [NOTIFICATION SERVICE FATAL ERROR]:', err);
     errors.push(err.message);

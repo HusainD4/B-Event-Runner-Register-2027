@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import prisma from '../config/database';
 import { emitStockUpdate } from '../sockets/index';
 import { sendOrderNotification } from '../services/notification.service';
+import { queueAutomaticPdfDeliveries } from '../services/pdf-delivery.service';
 
 function amountInMinorUnits(value: unknown): bigint | null {
   const amount = String(value);
@@ -106,6 +107,9 @@ export const handleMidtransWebhook = async (req: Request, res: Response): Promis
 
       if (changed && ['SETTLEMENT', 'CAPTURE', 'CANCEL', 'EXPIRE', 'DENY', 'REFUND'].includes(nextStatus)) {
         await tx.appSetting.deleteMany({ where: { key: `payment_expiry_${order.id}` } });
+      }
+      if (changed && nextStatus === 'SETTLEMENT') {
+        await queueAutomaticPdfDeliveries(tx, order.id);
       }
 
       // Catat log aktivitas webhook

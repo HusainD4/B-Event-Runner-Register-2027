@@ -176,6 +176,16 @@ exports.Prisma.OrderScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.PdfDeliveryScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  channel: 'channel',
+  status: 'status',
+  error: 'error',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.ParticipantScalarFieldEnum = {
   id: 'id',
   orderId: 'orderId',
@@ -326,6 +336,7 @@ exports.Prisma.ModelName = {
   EventBenefit: 'EventBenefit',
   Jersey: 'Jersey',
   Order: 'Order',
+  PdfDelivery: 'PdfDelivery',
   Participant: 'Participant',
   QrToken: 'QrToken',
   Log: 'Log',

@@ -38,6 +38,8 @@ function setup(initialStatus = 'PENDING') {
     updates: 0,
     logs: [],
     expiryDeletes: 0,
+    pdfJobs: [],
+    pdfChannel: 'DISABLED',
   };
   prisma.order.findUnique = async () => state.order;
   prisma.appSetting.findMany = async () => [{ key: 'notif_channel', value: 'DISABLED' }];
@@ -58,6 +60,13 @@ function setup(initialStatus = 'PENDING') {
     },
     appSetting: {
       deleteMany: async () => { state.expiryDeletes++; return { count: 1 }; },
+      findMany: async () => [{ key: 'pdf_delivery_channel', value: state.pdfChannel }],
+    },
+    pdfDelivery: {
+      upsert: async ({ create }) => {
+        state.pdfJobs.push(create);
+        return { status: 'PENDING' };
+      },
     },
     log: {
       create: async ({ data }) => { state.logs.push(data); return data; },
@@ -113,10 +122,24 @@ test('a duplicate paid webhook does not update or redispatch an already settled 
     gross_amount: '1000',
     transaction_status: 'settlement',
   });
+
   assert.equal(res.statusCode, 200);
   assert.equal(state.order.status, 'SETTLEMENT');
   assert.equal(state.updates, 0);
   assert.equal(state.expiryDeletes, 0);
+});
+
+test('a successful paid webhook creates both PDF jobs inside the status transaction', async () => {
+  const state = setup();
+  state.pdfChannel = 'BOTH';
+  const res = await webhook({
+    order_id: state.order.midtransOrderId,
+    gross_amount: '1000.00',
+    transaction_status: 'settlement',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.equal(state.order.status, 'SETTLEMENT');
+  assert.deepEqual(state.pdfJobs.map(job => job.channel), ['WA', 'EMAIL']);
 });
 
 test('only the first cancellation restores stock and clears expiry', async () => {

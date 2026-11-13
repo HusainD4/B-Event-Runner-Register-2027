@@ -39,6 +39,11 @@ export type Jersey = $Result.DefaultSelection<Prisma.$JerseyPayload>
  */
 export type Order = $Result.DefaultSelection<Prisma.$OrderPayload>
 /**
+ * Model PdfDelivery
+ * 
+ */
+export type PdfDelivery = $Result.DefaultSelection<Prisma.$PdfDeliveryPayload>
+/**
  * Model Participant
  * 
  */
@@ -299,6 +304,16 @@ export class PrismaClient<
     * ```
     */
   get order(): Prisma.OrderDelegate<ExtArgs>;
+
+  /**
+   * `prisma.pdfDelivery`: Exposes CRUD operations for the **PdfDelivery** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more PdfDeliveries
+    * const pdfDeliveries = await prisma.pdfDelivery.findMany()
+    * ```
+    */
+  get pdfDelivery(): Prisma.PdfDeliveryDelegate<ExtArgs>;
 
   /**
    * `prisma.participant`: Exposes CRUD operations for the **Participant** model.
@@ -825,6 +840,7 @@ export namespace Prisma {
     EventBenefit: 'EventBenefit',
     Jersey: 'Jersey',
     Order: 'Order',
+    PdfDelivery: 'PdfDelivery',
     Participant: 'Participant',
     QrToken: 'QrToken',
     Log: 'Log',
@@ -848,7 +864,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "user" | "event" | "eventBenefit" | "jersey" | "order" | "participant" | "qrToken" | "log" | "bibConfiguration" | "role" | "admin" | "appSetting" | "routePoint"
+      modelProps: "user" | "event" | "eventBenefit" | "jersey" | "order" | "pdfDelivery" | "participant" | "qrToken" | "log" | "bibConfiguration" | "role" | "admin" | "appSetting" | "routePoint"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1179,6 +1195,72 @@ export namespace Prisma {
           count: {
             args: Prisma.OrderCountArgs<ExtArgs>
             result: $Utils.Optional<OrderCountAggregateOutputType> | number
+          }
+        }
+      }
+      PdfDelivery: {
+        payload: Prisma.$PdfDeliveryPayload<ExtArgs>
+        fields: Prisma.PdfDeliveryFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.PdfDeliveryFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PdfDeliveryPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.PdfDeliveryFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PdfDeliveryPayload>
+          }
+          findFirst: {
+            args: Prisma.PdfDeliveryFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PdfDeliveryPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.PdfDeliveryFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PdfDeliveryPayload>
+          }
+          findMany: {
+            args: Prisma.PdfDeliveryFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PdfDeliveryPayload>[]
+          }
+          create: {
+            args: Prisma.PdfDeliveryCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PdfDeliveryPayload>
+          }
+          createMany: {
+            args: Prisma.PdfDeliveryCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          delete: {
+            args: Prisma.PdfDeliveryDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PdfDeliveryPayload>
+          }
+          update: {
+            args: Prisma.PdfDeliveryUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PdfDeliveryPayload>
+          }
+          deleteMany: {
+            args: Prisma.PdfDeliveryDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.PdfDeliveryUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.PdfDeliveryUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PdfDeliveryPayload>
+          }
+          aggregate: {
+            args: Prisma.PdfDeliveryAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePdfDelivery>
+          }
+          groupBy: {
+            args: Prisma.PdfDeliveryGroupByArgs<ExtArgs>
+            result: $Utils.Optional<PdfDeliveryGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.PdfDeliveryCountArgs<ExtArgs>
+            result: $Utils.Optional<PdfDeliveryCountAggregateOutputType> | number
           }
         }
       }
@@ -1992,10 +2074,12 @@ export namespace Prisma {
 
   export type OrderCountOutputType = {
     participants: number
+    pdfDeliveries: number
   }
 
   export type OrderCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     participants?: boolean | OrderCountOutputTypeCountParticipantsArgs
+    pdfDeliveries?: boolean | OrderCountOutputTypeCountPdfDeliveriesArgs
   }
 
   // Custom InputTypes
@@ -2014,6 +2098,13 @@ export namespace Prisma {
    */
   export type OrderCountOutputTypeCountParticipantsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: ParticipantWhereInput
+  }
+
+  /**
+   * OrderCountOutputType without action
+   */
+  export type OrderCountOutputTypeCountPdfDeliveriesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PdfDeliveryWhereInput
   }
 
 
@@ -6136,6 +6227,7 @@ export namespace Prisma {
     user?: boolean | UserDefaultArgs<ExtArgs>
     participants?: boolean | Order$participantsArgs<ExtArgs>
     masterQrToken?: boolean | Order$masterQrTokenArgs<ExtArgs>
+    pdfDeliveries?: boolean | Order$pdfDeliveriesArgs<ExtArgs>
     _count?: boolean | OrderCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["order"]>
 
@@ -6155,6 +6247,7 @@ export namespace Prisma {
     user?: boolean | UserDefaultArgs<ExtArgs>
     participants?: boolean | Order$participantsArgs<ExtArgs>
     masterQrToken?: boolean | Order$masterQrTokenArgs<ExtArgs>
+    pdfDeliveries?: boolean | Order$pdfDeliveriesArgs<ExtArgs>
     _count?: boolean | OrderCountOutputTypeDefaultArgs<ExtArgs>
   }
 
@@ -6164,6 +6257,7 @@ export namespace Prisma {
       user: Prisma.$UserPayload<ExtArgs>
       participants: Prisma.$ParticipantPayload<ExtArgs>[]
       masterQrToken: Prisma.$QrTokenPayload<ExtArgs> | null
+      pdfDeliveries: Prisma.$PdfDeliveryPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -6517,6 +6611,7 @@ export namespace Prisma {
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
     participants<T extends Order$participantsArgs<ExtArgs> = {}>(args?: Subset<T, Order$participantsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ParticipantPayload<ExtArgs>, T, "findMany"> | Null>
     masterQrToken<T extends Order$masterQrTokenArgs<ExtArgs> = {}>(args?: Subset<T, Order$masterQrTokenArgs<ExtArgs>>): Prisma__QrTokenClient<$Result.GetResult<Prisma.$QrTokenPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    pdfDeliveries<T extends Order$pdfDeliveriesArgs<ExtArgs> = {}>(args?: Subset<T, Order$pdfDeliveriesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PdfDeliveryPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -6888,6 +6983,26 @@ export namespace Prisma {
   }
 
   /**
+   * Order.pdfDeliveries
+   */
+  export type Order$pdfDeliveriesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
+    where?: PdfDeliveryWhereInput
+    orderBy?: PdfDeliveryOrderByWithRelationInput | PdfDeliveryOrderByWithRelationInput[]
+    cursor?: PdfDeliveryWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: PdfDeliveryScalarFieldEnum | PdfDeliveryScalarFieldEnum[]
+  }
+
+  /**
    * Order without action
    */
   export type OrderDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -6899,6 +7014,907 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: OrderInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model PdfDelivery
+   */
+
+  export type AggregatePdfDelivery = {
+    _count: PdfDeliveryCountAggregateOutputType | null
+    _min: PdfDeliveryMinAggregateOutputType | null
+    _max: PdfDeliveryMaxAggregateOutputType | null
+  }
+
+  export type PdfDeliveryMinAggregateOutputType = {
+    id: string | null
+    orderId: string | null
+    channel: string | null
+    status: string | null
+    error: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type PdfDeliveryMaxAggregateOutputType = {
+    id: string | null
+    orderId: string | null
+    channel: string | null
+    status: string | null
+    error: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type PdfDeliveryCountAggregateOutputType = {
+    id: number
+    orderId: number
+    channel: number
+    status: number
+    error: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type PdfDeliveryMinAggregateInputType = {
+    id?: true
+    orderId?: true
+    channel?: true
+    status?: true
+    error?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type PdfDeliveryMaxAggregateInputType = {
+    id?: true
+    orderId?: true
+    channel?: true
+    status?: true
+    error?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type PdfDeliveryCountAggregateInputType = {
+    id?: true
+    orderId?: true
+    channel?: true
+    status?: true
+    error?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type PdfDeliveryAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PdfDelivery to aggregate.
+     */
+    where?: PdfDeliveryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PdfDeliveries to fetch.
+     */
+    orderBy?: PdfDeliveryOrderByWithRelationInput | PdfDeliveryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: PdfDeliveryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PdfDeliveries from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PdfDeliveries.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned PdfDeliveries
+    **/
+    _count?: true | PdfDeliveryCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: PdfDeliveryMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: PdfDeliveryMaxAggregateInputType
+  }
+
+  export type GetPdfDeliveryAggregateType<T extends PdfDeliveryAggregateArgs> = {
+        [P in keyof T & keyof AggregatePdfDelivery]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePdfDelivery[P]>
+      : GetScalarType<T[P], AggregatePdfDelivery[P]>
+  }
+
+
+
+
+  export type PdfDeliveryGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PdfDeliveryWhereInput
+    orderBy?: PdfDeliveryOrderByWithAggregationInput | PdfDeliveryOrderByWithAggregationInput[]
+    by: PdfDeliveryScalarFieldEnum[] | PdfDeliveryScalarFieldEnum
+    having?: PdfDeliveryScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: PdfDeliveryCountAggregateInputType | true
+    _min?: PdfDeliveryMinAggregateInputType
+    _max?: PdfDeliveryMaxAggregateInputType
+  }
+
+  export type PdfDeliveryGroupByOutputType = {
+    id: string
+    orderId: string
+    channel: string
+    status: string
+    error: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: PdfDeliveryCountAggregateOutputType | null
+    _min: PdfDeliveryMinAggregateOutputType | null
+    _max: PdfDeliveryMaxAggregateOutputType | null
+  }
+
+  type GetPdfDeliveryGroupByPayload<T extends PdfDeliveryGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<PdfDeliveryGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof PdfDeliveryGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], PdfDeliveryGroupByOutputType[P]>
+            : GetScalarType<T[P], PdfDeliveryGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type PdfDeliverySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    orderId?: boolean
+    channel?: boolean
+    status?: boolean
+    error?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    order?: boolean | OrderDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["pdfDelivery"]>
+
+
+  export type PdfDeliverySelectScalar = {
+    id?: boolean
+    orderId?: boolean
+    channel?: boolean
+    status?: boolean
+    error?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type PdfDeliveryInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    order?: boolean | OrderDefaultArgs<ExtArgs>
+  }
+
+  export type $PdfDeliveryPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "PdfDelivery"
+    objects: {
+      order: Prisma.$OrderPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      orderId: string
+      channel: string
+      status: string
+      error: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["pdfDelivery"]>
+    composites: {}
+  }
+
+  type PdfDeliveryGetPayload<S extends boolean | null | undefined | PdfDeliveryDefaultArgs> = $Result.GetResult<Prisma.$PdfDeliveryPayload, S>
+
+  type PdfDeliveryCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<PdfDeliveryFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: PdfDeliveryCountAggregateInputType | true
+    }
+
+  export interface PdfDeliveryDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['PdfDelivery'], meta: { name: 'PdfDelivery' } }
+    /**
+     * Find zero or one PdfDelivery that matches the filter.
+     * @param {PdfDeliveryFindUniqueArgs} args - Arguments to find a PdfDelivery
+     * @example
+     * // Get one PdfDelivery
+     * const pdfDelivery = await prisma.pdfDelivery.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends PdfDeliveryFindUniqueArgs>(args: SelectSubset<T, PdfDeliveryFindUniqueArgs<ExtArgs>>): Prisma__PdfDeliveryClient<$Result.GetResult<Prisma.$PdfDeliveryPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one PdfDelivery that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {PdfDeliveryFindUniqueOrThrowArgs} args - Arguments to find a PdfDelivery
+     * @example
+     * // Get one PdfDelivery
+     * const pdfDelivery = await prisma.pdfDelivery.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends PdfDeliveryFindUniqueOrThrowArgs>(args: SelectSubset<T, PdfDeliveryFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PdfDeliveryClient<$Result.GetResult<Prisma.$PdfDeliveryPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first PdfDelivery that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PdfDeliveryFindFirstArgs} args - Arguments to find a PdfDelivery
+     * @example
+     * // Get one PdfDelivery
+     * const pdfDelivery = await prisma.pdfDelivery.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends PdfDeliveryFindFirstArgs>(args?: SelectSubset<T, PdfDeliveryFindFirstArgs<ExtArgs>>): Prisma__PdfDeliveryClient<$Result.GetResult<Prisma.$PdfDeliveryPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first PdfDelivery that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PdfDeliveryFindFirstOrThrowArgs} args - Arguments to find a PdfDelivery
+     * @example
+     * // Get one PdfDelivery
+     * const pdfDelivery = await prisma.pdfDelivery.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends PdfDeliveryFindFirstOrThrowArgs>(args?: SelectSubset<T, PdfDeliveryFindFirstOrThrowArgs<ExtArgs>>): Prisma__PdfDeliveryClient<$Result.GetResult<Prisma.$PdfDeliveryPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more PdfDeliveries that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PdfDeliveryFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all PdfDeliveries
+     * const pdfDeliveries = await prisma.pdfDelivery.findMany()
+     * 
+     * // Get first 10 PdfDeliveries
+     * const pdfDeliveries = await prisma.pdfDelivery.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const pdfDeliveryWithIdOnly = await prisma.pdfDelivery.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends PdfDeliveryFindManyArgs>(args?: SelectSubset<T, PdfDeliveryFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PdfDeliveryPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a PdfDelivery.
+     * @param {PdfDeliveryCreateArgs} args - Arguments to create a PdfDelivery.
+     * @example
+     * // Create one PdfDelivery
+     * const PdfDelivery = await prisma.pdfDelivery.create({
+     *   data: {
+     *     // ... data to create a PdfDelivery
+     *   }
+     * })
+     * 
+     */
+    create<T extends PdfDeliveryCreateArgs>(args: SelectSubset<T, PdfDeliveryCreateArgs<ExtArgs>>): Prisma__PdfDeliveryClient<$Result.GetResult<Prisma.$PdfDeliveryPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many PdfDeliveries.
+     * @param {PdfDeliveryCreateManyArgs} args - Arguments to create many PdfDeliveries.
+     * @example
+     * // Create many PdfDeliveries
+     * const pdfDelivery = await prisma.pdfDelivery.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends PdfDeliveryCreateManyArgs>(args?: SelectSubset<T, PdfDeliveryCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Delete a PdfDelivery.
+     * @param {PdfDeliveryDeleteArgs} args - Arguments to delete one PdfDelivery.
+     * @example
+     * // Delete one PdfDelivery
+     * const PdfDelivery = await prisma.pdfDelivery.delete({
+     *   where: {
+     *     // ... filter to delete one PdfDelivery
+     *   }
+     * })
+     * 
+     */
+    delete<T extends PdfDeliveryDeleteArgs>(args: SelectSubset<T, PdfDeliveryDeleteArgs<ExtArgs>>): Prisma__PdfDeliveryClient<$Result.GetResult<Prisma.$PdfDeliveryPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one PdfDelivery.
+     * @param {PdfDeliveryUpdateArgs} args - Arguments to update one PdfDelivery.
+     * @example
+     * // Update one PdfDelivery
+     * const pdfDelivery = await prisma.pdfDelivery.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends PdfDeliveryUpdateArgs>(args: SelectSubset<T, PdfDeliveryUpdateArgs<ExtArgs>>): Prisma__PdfDeliveryClient<$Result.GetResult<Prisma.$PdfDeliveryPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more PdfDeliveries.
+     * @param {PdfDeliveryDeleteManyArgs} args - Arguments to filter PdfDeliveries to delete.
+     * @example
+     * // Delete a few PdfDeliveries
+     * const { count } = await prisma.pdfDelivery.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends PdfDeliveryDeleteManyArgs>(args?: SelectSubset<T, PdfDeliveryDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PdfDeliveries.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PdfDeliveryUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many PdfDeliveries
+     * const pdfDelivery = await prisma.pdfDelivery.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends PdfDeliveryUpdateManyArgs>(args: SelectSubset<T, PdfDeliveryUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one PdfDelivery.
+     * @param {PdfDeliveryUpsertArgs} args - Arguments to update or create a PdfDelivery.
+     * @example
+     * // Update or create a PdfDelivery
+     * const pdfDelivery = await prisma.pdfDelivery.upsert({
+     *   create: {
+     *     // ... data to create a PdfDelivery
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the PdfDelivery we want to update
+     *   }
+     * })
+     */
+    upsert<T extends PdfDeliveryUpsertArgs>(args: SelectSubset<T, PdfDeliveryUpsertArgs<ExtArgs>>): Prisma__PdfDeliveryClient<$Result.GetResult<Prisma.$PdfDeliveryPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of PdfDeliveries.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PdfDeliveryCountArgs} args - Arguments to filter PdfDeliveries to count.
+     * @example
+     * // Count the number of PdfDeliveries
+     * const count = await prisma.pdfDelivery.count({
+     *   where: {
+     *     // ... the filter for the PdfDeliveries we want to count
+     *   }
+     * })
+    **/
+    count<T extends PdfDeliveryCountArgs>(
+      args?: Subset<T, PdfDeliveryCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], PdfDeliveryCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a PdfDelivery.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PdfDeliveryAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends PdfDeliveryAggregateArgs>(args: Subset<T, PdfDeliveryAggregateArgs>): Prisma.PrismaPromise<GetPdfDeliveryAggregateType<T>>
+
+    /**
+     * Group by PdfDelivery.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PdfDeliveryGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends PdfDeliveryGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: PdfDeliveryGroupByArgs['orderBy'] }
+        : { orderBy?: PdfDeliveryGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, PdfDeliveryGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPdfDeliveryGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the PdfDelivery model
+   */
+  readonly fields: PdfDeliveryFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for PdfDelivery.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__PdfDeliveryClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    order<T extends OrderDefaultArgs<ExtArgs> = {}>(args?: Subset<T, OrderDefaultArgs<ExtArgs>>): Prisma__OrderClient<$Result.GetResult<Prisma.$OrderPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the PdfDelivery model
+   */ 
+  interface PdfDeliveryFieldRefs {
+    readonly id: FieldRef<"PdfDelivery", 'String'>
+    readonly orderId: FieldRef<"PdfDelivery", 'String'>
+    readonly channel: FieldRef<"PdfDelivery", 'String'>
+    readonly status: FieldRef<"PdfDelivery", 'String'>
+    readonly error: FieldRef<"PdfDelivery", 'String'>
+    readonly createdAt: FieldRef<"PdfDelivery", 'DateTime'>
+    readonly updatedAt: FieldRef<"PdfDelivery", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * PdfDelivery findUnique
+   */
+  export type PdfDeliveryFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
+    /**
+     * Filter, which PdfDelivery to fetch.
+     */
+    where: PdfDeliveryWhereUniqueInput
+  }
+
+  /**
+   * PdfDelivery findUniqueOrThrow
+   */
+  export type PdfDeliveryFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
+    /**
+     * Filter, which PdfDelivery to fetch.
+     */
+    where: PdfDeliveryWhereUniqueInput
+  }
+
+  /**
+   * PdfDelivery findFirst
+   */
+  export type PdfDeliveryFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
+    /**
+     * Filter, which PdfDelivery to fetch.
+     */
+    where?: PdfDeliveryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PdfDeliveries to fetch.
+     */
+    orderBy?: PdfDeliveryOrderByWithRelationInput | PdfDeliveryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PdfDeliveries.
+     */
+    cursor?: PdfDeliveryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PdfDeliveries from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PdfDeliveries.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PdfDeliveries.
+     */
+    distinct?: PdfDeliveryScalarFieldEnum | PdfDeliveryScalarFieldEnum[]
+  }
+
+  /**
+   * PdfDelivery findFirstOrThrow
+   */
+  export type PdfDeliveryFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
+    /**
+     * Filter, which PdfDelivery to fetch.
+     */
+    where?: PdfDeliveryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PdfDeliveries to fetch.
+     */
+    orderBy?: PdfDeliveryOrderByWithRelationInput | PdfDeliveryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PdfDeliveries.
+     */
+    cursor?: PdfDeliveryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PdfDeliveries from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PdfDeliveries.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PdfDeliveries.
+     */
+    distinct?: PdfDeliveryScalarFieldEnum | PdfDeliveryScalarFieldEnum[]
+  }
+
+  /**
+   * PdfDelivery findMany
+   */
+  export type PdfDeliveryFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
+    /**
+     * Filter, which PdfDeliveries to fetch.
+     */
+    where?: PdfDeliveryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PdfDeliveries to fetch.
+     */
+    orderBy?: PdfDeliveryOrderByWithRelationInput | PdfDeliveryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing PdfDeliveries.
+     */
+    cursor?: PdfDeliveryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PdfDeliveries from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PdfDeliveries.
+     */
+    skip?: number
+    distinct?: PdfDeliveryScalarFieldEnum | PdfDeliveryScalarFieldEnum[]
+  }
+
+  /**
+   * PdfDelivery create
+   */
+  export type PdfDeliveryCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
+    /**
+     * The data needed to create a PdfDelivery.
+     */
+    data: XOR<PdfDeliveryCreateInput, PdfDeliveryUncheckedCreateInput>
+  }
+
+  /**
+   * PdfDelivery createMany
+   */
+  export type PdfDeliveryCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many PdfDeliveries.
+     */
+    data: PdfDeliveryCreateManyInput | PdfDeliveryCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * PdfDelivery update
+   */
+  export type PdfDeliveryUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
+    /**
+     * The data needed to update a PdfDelivery.
+     */
+    data: XOR<PdfDeliveryUpdateInput, PdfDeliveryUncheckedUpdateInput>
+    /**
+     * Choose, which PdfDelivery to update.
+     */
+    where: PdfDeliveryWhereUniqueInput
+  }
+
+  /**
+   * PdfDelivery updateMany
+   */
+  export type PdfDeliveryUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update PdfDeliveries.
+     */
+    data: XOR<PdfDeliveryUpdateManyMutationInput, PdfDeliveryUncheckedUpdateManyInput>
+    /**
+     * Filter which PdfDeliveries to update
+     */
+    where?: PdfDeliveryWhereInput
+  }
+
+  /**
+   * PdfDelivery upsert
+   */
+  export type PdfDeliveryUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
+    /**
+     * The filter to search for the PdfDelivery to update in case it exists.
+     */
+    where: PdfDeliveryWhereUniqueInput
+    /**
+     * In case the PdfDelivery found by the `where` argument doesn't exist, create a new PdfDelivery with this data.
+     */
+    create: XOR<PdfDeliveryCreateInput, PdfDeliveryUncheckedCreateInput>
+    /**
+     * In case the PdfDelivery was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<PdfDeliveryUpdateInput, PdfDeliveryUncheckedUpdateInput>
+  }
+
+  /**
+   * PdfDelivery delete
+   */
+  export type PdfDeliveryDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
+    /**
+     * Filter which PdfDelivery to delete.
+     */
+    where: PdfDeliveryWhereUniqueInput
+  }
+
+  /**
+   * PdfDelivery deleteMany
+   */
+  export type PdfDeliveryDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PdfDeliveries to delete
+     */
+    where?: PdfDeliveryWhereInput
+  }
+
+  /**
+   * PdfDelivery without action
+   */
+  export type PdfDeliveryDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PdfDelivery
+     */
+    select?: PdfDeliverySelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PdfDeliveryInclude<ExtArgs> | null
   }
 
 
@@ -14553,6 +15569,19 @@ export namespace Prisma {
   export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
 
 
+  export const PdfDeliveryScalarFieldEnum: {
+    id: 'id',
+    orderId: 'orderId',
+    channel: 'channel',
+    status: 'status',
+    error: 'error',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type PdfDeliveryScalarFieldEnum = (typeof PdfDeliveryScalarFieldEnum)[keyof typeof PdfDeliveryScalarFieldEnum]
+
+
   export const ParticipantScalarFieldEnum: {
     id: 'id',
     orderId: 'orderId',
@@ -15100,6 +16129,7 @@ export namespace Prisma {
     user?: XOR<UserRelationFilter, UserWhereInput>
     participants?: ParticipantListRelationFilter
     masterQrToken?: XOR<QrTokenNullableRelationFilter, QrTokenWhereInput> | null
+    pdfDeliveries?: PdfDeliveryListRelationFilter
   }
 
   export type OrderOrderByWithRelationInput = {
@@ -15114,6 +16144,7 @@ export namespace Prisma {
     user?: UserOrderByWithRelationInput
     participants?: ParticipantOrderByRelationAggregateInput
     masterQrToken?: QrTokenOrderByWithRelationInput
+    pdfDeliveries?: PdfDeliveryOrderByRelationAggregateInput
   }
 
   export type OrderWhereUniqueInput = Prisma.AtLeast<{
@@ -15131,6 +16162,7 @@ export namespace Prisma {
     user?: XOR<UserRelationFilter, UserWhereInput>
     participants?: ParticipantListRelationFilter
     masterQrToken?: XOR<QrTokenNullableRelationFilter, QrTokenWhereInput> | null
+    pdfDeliveries?: PdfDeliveryListRelationFilter
   }, "id" | "midtransOrderId">
 
   export type OrderOrderByWithAggregationInput = {
@@ -15161,6 +16193,72 @@ export namespace Prisma {
     snapToken?: StringNullableWithAggregatesFilter<"Order"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Order"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Order"> | Date | string
+  }
+
+  export type PdfDeliveryWhereInput = {
+    AND?: PdfDeliveryWhereInput | PdfDeliveryWhereInput[]
+    OR?: PdfDeliveryWhereInput[]
+    NOT?: PdfDeliveryWhereInput | PdfDeliveryWhereInput[]
+    id?: StringFilter<"PdfDelivery"> | string
+    orderId?: StringFilter<"PdfDelivery"> | string
+    channel?: StringFilter<"PdfDelivery"> | string
+    status?: StringFilter<"PdfDelivery"> | string
+    error?: StringNullableFilter<"PdfDelivery"> | string | null
+    createdAt?: DateTimeFilter<"PdfDelivery"> | Date | string
+    updatedAt?: DateTimeFilter<"PdfDelivery"> | Date | string
+    order?: XOR<OrderRelationFilter, OrderWhereInput>
+  }
+
+  export type PdfDeliveryOrderByWithRelationInput = {
+    id?: SortOrder
+    orderId?: SortOrder
+    channel?: SortOrder
+    status?: SortOrder
+    error?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    order?: OrderOrderByWithRelationInput
+  }
+
+  export type PdfDeliveryWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    orderId_channel?: PdfDeliveryOrderIdChannelCompoundUniqueInput
+    AND?: PdfDeliveryWhereInput | PdfDeliveryWhereInput[]
+    OR?: PdfDeliveryWhereInput[]
+    NOT?: PdfDeliveryWhereInput | PdfDeliveryWhereInput[]
+    orderId?: StringFilter<"PdfDelivery"> | string
+    channel?: StringFilter<"PdfDelivery"> | string
+    status?: StringFilter<"PdfDelivery"> | string
+    error?: StringNullableFilter<"PdfDelivery"> | string | null
+    createdAt?: DateTimeFilter<"PdfDelivery"> | Date | string
+    updatedAt?: DateTimeFilter<"PdfDelivery"> | Date | string
+    order?: XOR<OrderRelationFilter, OrderWhereInput>
+  }, "id" | "orderId_channel">
+
+  export type PdfDeliveryOrderByWithAggregationInput = {
+    id?: SortOrder
+    orderId?: SortOrder
+    channel?: SortOrder
+    status?: SortOrder
+    error?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: PdfDeliveryCountOrderByAggregateInput
+    _max?: PdfDeliveryMaxOrderByAggregateInput
+    _min?: PdfDeliveryMinOrderByAggregateInput
+  }
+
+  export type PdfDeliveryScalarWhereWithAggregatesInput = {
+    AND?: PdfDeliveryScalarWhereWithAggregatesInput | PdfDeliveryScalarWhereWithAggregatesInput[]
+    OR?: PdfDeliveryScalarWhereWithAggregatesInput[]
+    NOT?: PdfDeliveryScalarWhereWithAggregatesInput | PdfDeliveryScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"PdfDelivery"> | string
+    orderId?: StringWithAggregatesFilter<"PdfDelivery"> | string
+    channel?: StringWithAggregatesFilter<"PdfDelivery"> | string
+    status?: StringWithAggregatesFilter<"PdfDelivery"> | string
+    error?: StringNullableWithAggregatesFilter<"PdfDelivery"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"PdfDelivery"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"PdfDelivery"> | Date | string
   }
 
   export type ParticipantWhereInput = {
@@ -16129,6 +17227,7 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutOrdersInput
     participants?: ParticipantCreateNestedManyWithoutOrderInput
     masterQrToken?: QrTokenCreateNestedOneWithoutOrderInput
+    pdfDeliveries?: PdfDeliveryCreateNestedManyWithoutOrderInput
   }
 
   export type OrderUncheckedCreateInput = {
@@ -16142,6 +17241,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     participants?: ParticipantUncheckedCreateNestedManyWithoutOrderInput
     masterQrToken?: QrTokenUncheckedCreateNestedOneWithoutOrderInput
+    pdfDeliveries?: PdfDeliveryUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type OrderUpdateInput = {
@@ -16155,6 +17255,7 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutOrdersNestedInput
     participants?: ParticipantUpdateManyWithoutOrderNestedInput
     masterQrToken?: QrTokenUpdateOneWithoutOrderNestedInput
+    pdfDeliveries?: PdfDeliveryUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderUncheckedUpdateInput = {
@@ -16168,6 +17269,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUncheckedUpdateManyWithoutOrderNestedInput
     masterQrToken?: QrTokenUncheckedUpdateOneWithoutOrderNestedInput
+    pdfDeliveries?: PdfDeliveryUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderCreateManyInput = {
@@ -16198,6 +17300,75 @@ export namespace Prisma {
     status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
     midtransOrderId?: NullableStringFieldUpdateOperationsInput | string | null
     snapToken?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PdfDeliveryCreateInput = {
+    id?: string
+    channel: string
+    status?: string
+    error?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    order: OrderCreateNestedOneWithoutPdfDeliveriesInput
+  }
+
+  export type PdfDeliveryUncheckedCreateInput = {
+    id?: string
+    orderId: string
+    channel: string
+    status?: string
+    error?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type PdfDeliveryUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    channel?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    order?: OrderUpdateOneRequiredWithoutPdfDeliveriesNestedInput
+  }
+
+  export type PdfDeliveryUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    orderId?: StringFieldUpdateOperationsInput | string
+    channel?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PdfDeliveryCreateManyInput = {
+    id?: string
+    orderId: string
+    channel: string
+    status?: string
+    error?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type PdfDeliveryUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    channel?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PdfDeliveryUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    orderId?: StringFieldUpdateOperationsInput | string
+    channel?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17381,6 +18552,16 @@ export namespace Prisma {
     isNot?: QrTokenWhereInput | null
   }
 
+  export type PdfDeliveryListRelationFilter = {
+    every?: PdfDeliveryWhereInput
+    some?: PdfDeliveryWhereInput
+    none?: PdfDeliveryWhereInput
+  }
+
+  export type PdfDeliveryOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type OrderCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
@@ -17432,6 +18613,46 @@ export namespace Prisma {
     _max?: NestedEnumOrderStatusFilter<$PrismaModel>
   }
 
+  export type OrderRelationFilter = {
+    is?: OrderWhereInput
+    isNot?: OrderWhereInput
+  }
+
+  export type PdfDeliveryOrderIdChannelCompoundUniqueInput = {
+    orderId: string
+    channel: string
+  }
+
+  export type PdfDeliveryCountOrderByAggregateInput = {
+    id?: SortOrder
+    orderId?: SortOrder
+    channel?: SortOrder
+    status?: SortOrder
+    error?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type PdfDeliveryMaxOrderByAggregateInput = {
+    id?: SortOrder
+    orderId?: SortOrder
+    channel?: SortOrder
+    status?: SortOrder
+    error?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type PdfDeliveryMinOrderByAggregateInput = {
+    id?: SortOrder
+    orderId?: SortOrder
+    channel?: SortOrder
+    status?: SortOrder
+    error?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
   export type EnumGenderFilter<$PrismaModel = never> = {
     equals?: $Enums.Gender | EnumGenderFieldRefInput<$PrismaModel>
     in?: $Enums.Gender[]
@@ -17444,11 +18665,6 @@ export namespace Prisma {
     in?: $Enums.BloodType[]
     notIn?: $Enums.BloodType[]
     not?: NestedEnumBloodTypeFilter<$PrismaModel> | $Enums.BloodType
-  }
-
-  export type OrderRelationFilter = {
-    is?: OrderWhereInput
-    isNot?: OrderWhereInput
   }
 
   export type JerseyNullableRelationFilter = {
@@ -18194,6 +19410,13 @@ export namespace Prisma {
     connect?: QrTokenWhereUniqueInput
   }
 
+  export type PdfDeliveryCreateNestedManyWithoutOrderInput = {
+    create?: XOR<PdfDeliveryCreateWithoutOrderInput, PdfDeliveryUncheckedCreateWithoutOrderInput> | PdfDeliveryCreateWithoutOrderInput[] | PdfDeliveryUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: PdfDeliveryCreateOrConnectWithoutOrderInput | PdfDeliveryCreateOrConnectWithoutOrderInput[]
+    createMany?: PdfDeliveryCreateManyOrderInputEnvelope
+    connect?: PdfDeliveryWhereUniqueInput | PdfDeliveryWhereUniqueInput[]
+  }
+
   export type ParticipantUncheckedCreateNestedManyWithoutOrderInput = {
     create?: XOR<ParticipantCreateWithoutOrderInput, ParticipantUncheckedCreateWithoutOrderInput> | ParticipantCreateWithoutOrderInput[] | ParticipantUncheckedCreateWithoutOrderInput[]
     connectOrCreate?: ParticipantCreateOrConnectWithoutOrderInput | ParticipantCreateOrConnectWithoutOrderInput[]
@@ -18205,6 +19428,13 @@ export namespace Prisma {
     create?: XOR<QrTokenCreateWithoutOrderInput, QrTokenUncheckedCreateWithoutOrderInput>
     connectOrCreate?: QrTokenCreateOrConnectWithoutOrderInput
     connect?: QrTokenWhereUniqueInput
+  }
+
+  export type PdfDeliveryUncheckedCreateNestedManyWithoutOrderInput = {
+    create?: XOR<PdfDeliveryCreateWithoutOrderInput, PdfDeliveryUncheckedCreateWithoutOrderInput> | PdfDeliveryCreateWithoutOrderInput[] | PdfDeliveryUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: PdfDeliveryCreateOrConnectWithoutOrderInput | PdfDeliveryCreateOrConnectWithoutOrderInput[]
+    createMany?: PdfDeliveryCreateManyOrderInputEnvelope
+    connect?: PdfDeliveryWhereUniqueInput | PdfDeliveryWhereUniqueInput[]
   }
 
   export type EnumOrderStatusFieldUpdateOperationsInput = {
@@ -18243,6 +19473,20 @@ export namespace Prisma {
     update?: XOR<XOR<QrTokenUpdateToOneWithWhereWithoutOrderInput, QrTokenUpdateWithoutOrderInput>, QrTokenUncheckedUpdateWithoutOrderInput>
   }
 
+  export type PdfDeliveryUpdateManyWithoutOrderNestedInput = {
+    create?: XOR<PdfDeliveryCreateWithoutOrderInput, PdfDeliveryUncheckedCreateWithoutOrderInput> | PdfDeliveryCreateWithoutOrderInput[] | PdfDeliveryUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: PdfDeliveryCreateOrConnectWithoutOrderInput | PdfDeliveryCreateOrConnectWithoutOrderInput[]
+    upsert?: PdfDeliveryUpsertWithWhereUniqueWithoutOrderInput | PdfDeliveryUpsertWithWhereUniqueWithoutOrderInput[]
+    createMany?: PdfDeliveryCreateManyOrderInputEnvelope
+    set?: PdfDeliveryWhereUniqueInput | PdfDeliveryWhereUniqueInput[]
+    disconnect?: PdfDeliveryWhereUniqueInput | PdfDeliveryWhereUniqueInput[]
+    delete?: PdfDeliveryWhereUniqueInput | PdfDeliveryWhereUniqueInput[]
+    connect?: PdfDeliveryWhereUniqueInput | PdfDeliveryWhereUniqueInput[]
+    update?: PdfDeliveryUpdateWithWhereUniqueWithoutOrderInput | PdfDeliveryUpdateWithWhereUniqueWithoutOrderInput[]
+    updateMany?: PdfDeliveryUpdateManyWithWhereWithoutOrderInput | PdfDeliveryUpdateManyWithWhereWithoutOrderInput[]
+    deleteMany?: PdfDeliveryScalarWhereInput | PdfDeliveryScalarWhereInput[]
+  }
+
   export type ParticipantUncheckedUpdateManyWithoutOrderNestedInput = {
     create?: XOR<ParticipantCreateWithoutOrderInput, ParticipantUncheckedCreateWithoutOrderInput> | ParticipantCreateWithoutOrderInput[] | ParticipantUncheckedCreateWithoutOrderInput[]
     connectOrCreate?: ParticipantCreateOrConnectWithoutOrderInput | ParticipantCreateOrConnectWithoutOrderInput[]
@@ -18265,6 +19509,34 @@ export namespace Prisma {
     delete?: QrTokenWhereInput | boolean
     connect?: QrTokenWhereUniqueInput
     update?: XOR<XOR<QrTokenUpdateToOneWithWhereWithoutOrderInput, QrTokenUpdateWithoutOrderInput>, QrTokenUncheckedUpdateWithoutOrderInput>
+  }
+
+  export type PdfDeliveryUncheckedUpdateManyWithoutOrderNestedInput = {
+    create?: XOR<PdfDeliveryCreateWithoutOrderInput, PdfDeliveryUncheckedCreateWithoutOrderInput> | PdfDeliveryCreateWithoutOrderInput[] | PdfDeliveryUncheckedCreateWithoutOrderInput[]
+    connectOrCreate?: PdfDeliveryCreateOrConnectWithoutOrderInput | PdfDeliveryCreateOrConnectWithoutOrderInput[]
+    upsert?: PdfDeliveryUpsertWithWhereUniqueWithoutOrderInput | PdfDeliveryUpsertWithWhereUniqueWithoutOrderInput[]
+    createMany?: PdfDeliveryCreateManyOrderInputEnvelope
+    set?: PdfDeliveryWhereUniqueInput | PdfDeliveryWhereUniqueInput[]
+    disconnect?: PdfDeliveryWhereUniqueInput | PdfDeliveryWhereUniqueInput[]
+    delete?: PdfDeliveryWhereUniqueInput | PdfDeliveryWhereUniqueInput[]
+    connect?: PdfDeliveryWhereUniqueInput | PdfDeliveryWhereUniqueInput[]
+    update?: PdfDeliveryUpdateWithWhereUniqueWithoutOrderInput | PdfDeliveryUpdateWithWhereUniqueWithoutOrderInput[]
+    updateMany?: PdfDeliveryUpdateManyWithWhereWithoutOrderInput | PdfDeliveryUpdateManyWithWhereWithoutOrderInput[]
+    deleteMany?: PdfDeliveryScalarWhereInput | PdfDeliveryScalarWhereInput[]
+  }
+
+  export type OrderCreateNestedOneWithoutPdfDeliveriesInput = {
+    create?: XOR<OrderCreateWithoutPdfDeliveriesInput, OrderUncheckedCreateWithoutPdfDeliveriesInput>
+    connectOrCreate?: OrderCreateOrConnectWithoutPdfDeliveriesInput
+    connect?: OrderWhereUniqueInput
+  }
+
+  export type OrderUpdateOneRequiredWithoutPdfDeliveriesNestedInput = {
+    create?: XOR<OrderCreateWithoutPdfDeliveriesInput, OrderUncheckedCreateWithoutPdfDeliveriesInput>
+    connectOrCreate?: OrderCreateOrConnectWithoutPdfDeliveriesInput
+    upsert?: OrderUpsertWithoutPdfDeliveriesInput
+    connect?: OrderWhereUniqueInput
+    update?: XOR<XOR<OrderUpdateToOneWithWhereWithoutPdfDeliveriesInput, OrderUpdateWithoutPdfDeliveriesInput>, OrderUncheckedUpdateWithoutPdfDeliveriesInput>
   }
 
   export type OrderCreateNestedOneWithoutParticipantsInput = {
@@ -18833,6 +20105,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     participants?: ParticipantCreateNestedManyWithoutOrderInput
     masterQrToken?: QrTokenCreateNestedOneWithoutOrderInput
+    pdfDeliveries?: PdfDeliveryCreateNestedManyWithoutOrderInput
   }
 
   export type OrderUncheckedCreateWithoutUserInput = {
@@ -18845,6 +20118,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     participants?: ParticipantUncheckedCreateNestedManyWithoutOrderInput
     masterQrToken?: QrTokenUncheckedCreateNestedOneWithoutOrderInput
+    pdfDeliveries?: PdfDeliveryUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type OrderCreateOrConnectWithoutUserInput = {
@@ -19571,6 +20845,34 @@ export namespace Prisma {
     create: XOR<QrTokenCreateWithoutOrderInput, QrTokenUncheckedCreateWithoutOrderInput>
   }
 
+  export type PdfDeliveryCreateWithoutOrderInput = {
+    id?: string
+    channel: string
+    status?: string
+    error?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type PdfDeliveryUncheckedCreateWithoutOrderInput = {
+    id?: string
+    channel: string
+    status?: string
+    error?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type PdfDeliveryCreateOrConnectWithoutOrderInput = {
+    where: PdfDeliveryWhereUniqueInput
+    create: XOR<PdfDeliveryCreateWithoutOrderInput, PdfDeliveryUncheckedCreateWithoutOrderInput>
+  }
+
+  export type PdfDeliveryCreateManyOrderInputEnvelope = {
+    data: PdfDeliveryCreateManyOrderInput | PdfDeliveryCreateManyOrderInput[]
+    skipDuplicates?: boolean
+  }
+
   export type UserUpsertWithoutOrdersInput = {
     update: XOR<UserUpdateWithoutOrdersInput, UserUncheckedUpdateWithoutOrdersInput>
     create: XOR<UserCreateWithoutOrdersInput, UserUncheckedCreateWithoutOrdersInput>
@@ -19639,6 +20941,103 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type PdfDeliveryUpsertWithWhereUniqueWithoutOrderInput = {
+    where: PdfDeliveryWhereUniqueInput
+    update: XOR<PdfDeliveryUpdateWithoutOrderInput, PdfDeliveryUncheckedUpdateWithoutOrderInput>
+    create: XOR<PdfDeliveryCreateWithoutOrderInput, PdfDeliveryUncheckedCreateWithoutOrderInput>
+  }
+
+  export type PdfDeliveryUpdateWithWhereUniqueWithoutOrderInput = {
+    where: PdfDeliveryWhereUniqueInput
+    data: XOR<PdfDeliveryUpdateWithoutOrderInput, PdfDeliveryUncheckedUpdateWithoutOrderInput>
+  }
+
+  export type PdfDeliveryUpdateManyWithWhereWithoutOrderInput = {
+    where: PdfDeliveryScalarWhereInput
+    data: XOR<PdfDeliveryUpdateManyMutationInput, PdfDeliveryUncheckedUpdateManyWithoutOrderInput>
+  }
+
+  export type PdfDeliveryScalarWhereInput = {
+    AND?: PdfDeliveryScalarWhereInput | PdfDeliveryScalarWhereInput[]
+    OR?: PdfDeliveryScalarWhereInput[]
+    NOT?: PdfDeliveryScalarWhereInput | PdfDeliveryScalarWhereInput[]
+    id?: StringFilter<"PdfDelivery"> | string
+    orderId?: StringFilter<"PdfDelivery"> | string
+    channel?: StringFilter<"PdfDelivery"> | string
+    status?: StringFilter<"PdfDelivery"> | string
+    error?: StringNullableFilter<"PdfDelivery"> | string | null
+    createdAt?: DateTimeFilter<"PdfDelivery"> | Date | string
+    updatedAt?: DateTimeFilter<"PdfDelivery"> | Date | string
+  }
+
+  export type OrderCreateWithoutPdfDeliveriesInput = {
+    id?: string
+    totalAmount: Decimal | DecimalJsLike | number | string
+    status?: $Enums.OrderStatus
+    midtransOrderId?: string | null
+    snapToken?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutOrdersInput
+    participants?: ParticipantCreateNestedManyWithoutOrderInput
+    masterQrToken?: QrTokenCreateNestedOneWithoutOrderInput
+  }
+
+  export type OrderUncheckedCreateWithoutPdfDeliveriesInput = {
+    id?: string
+    userId: string
+    totalAmount: Decimal | DecimalJsLike | number | string
+    status?: $Enums.OrderStatus
+    midtransOrderId?: string | null
+    snapToken?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    participants?: ParticipantUncheckedCreateNestedManyWithoutOrderInput
+    masterQrToken?: QrTokenUncheckedCreateNestedOneWithoutOrderInput
+  }
+
+  export type OrderCreateOrConnectWithoutPdfDeliveriesInput = {
+    where: OrderWhereUniqueInput
+    create: XOR<OrderCreateWithoutPdfDeliveriesInput, OrderUncheckedCreateWithoutPdfDeliveriesInput>
+  }
+
+  export type OrderUpsertWithoutPdfDeliveriesInput = {
+    update: XOR<OrderUpdateWithoutPdfDeliveriesInput, OrderUncheckedUpdateWithoutPdfDeliveriesInput>
+    create: XOR<OrderCreateWithoutPdfDeliveriesInput, OrderUncheckedCreateWithoutPdfDeliveriesInput>
+    where?: OrderWhereInput
+  }
+
+  export type OrderUpdateToOneWithWhereWithoutPdfDeliveriesInput = {
+    where?: OrderWhereInput
+    data: XOR<OrderUpdateWithoutPdfDeliveriesInput, OrderUncheckedUpdateWithoutPdfDeliveriesInput>
+  }
+
+  export type OrderUpdateWithoutPdfDeliveriesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    midtransOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    snapToken?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutOrdersNestedInput
+    participants?: ParticipantUpdateManyWithoutOrderNestedInput
+    masterQrToken?: QrTokenUpdateOneWithoutOrderNestedInput
+  }
+
+  export type OrderUncheckedUpdateWithoutPdfDeliveriesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    totalAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
+    status?: EnumOrderStatusFieldUpdateOperationsInput | $Enums.OrderStatus
+    midtransOrderId?: NullableStringFieldUpdateOperationsInput | string | null
+    snapToken?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    participants?: ParticipantUncheckedUpdateManyWithoutOrderNestedInput
+    masterQrToken?: QrTokenUncheckedUpdateOneWithoutOrderNestedInput
+  }
+
   export type OrderCreateWithoutParticipantsInput = {
     id?: string
     totalAmount: Decimal | DecimalJsLike | number | string
@@ -19649,6 +21048,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutOrdersInput
     masterQrToken?: QrTokenCreateNestedOneWithoutOrderInput
+    pdfDeliveries?: PdfDeliveryCreateNestedManyWithoutOrderInput
   }
 
   export type OrderUncheckedCreateWithoutParticipantsInput = {
@@ -19661,6 +21061,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     masterQrToken?: QrTokenUncheckedCreateNestedOneWithoutOrderInput
+    pdfDeliveries?: PdfDeliveryUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type OrderCreateOrConnectWithoutParticipantsInput = {
@@ -19776,6 +21177,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutOrdersNestedInput
     masterQrToken?: QrTokenUpdateOneWithoutOrderNestedInput
+    pdfDeliveries?: PdfDeliveryUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderUncheckedUpdateWithoutParticipantsInput = {
@@ -19788,6 +21190,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     masterQrToken?: QrTokenUncheckedUpdateOneWithoutOrderNestedInput
+    pdfDeliveries?: PdfDeliveryUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type EventUpsertWithoutParticipantsInput = {
@@ -19958,6 +21361,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutOrdersInput
     participants?: ParticipantCreateNestedManyWithoutOrderInput
+    pdfDeliveries?: PdfDeliveryCreateNestedManyWithoutOrderInput
   }
 
   export type OrderUncheckedCreateWithoutMasterQrTokenInput = {
@@ -19970,6 +21374,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     participants?: ParticipantUncheckedCreateNestedManyWithoutOrderInput
+    pdfDeliveries?: PdfDeliveryUncheckedCreateNestedManyWithoutOrderInput
   }
 
   export type OrderCreateOrConnectWithoutMasterQrTokenInput = {
@@ -20057,6 +21462,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutOrdersNestedInput
     participants?: ParticipantUpdateManyWithoutOrderNestedInput
+    pdfDeliveries?: PdfDeliveryUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderUncheckedUpdateWithoutMasterQrTokenInput = {
@@ -20069,6 +21475,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUncheckedUpdateManyWithoutOrderNestedInput
+    pdfDeliveries?: PdfDeliveryUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type UserCreateWithoutLogsInput = {
@@ -20478,6 +21885,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUpdateManyWithoutOrderNestedInput
     masterQrToken?: QrTokenUpdateOneWithoutOrderNestedInput
+    pdfDeliveries?: PdfDeliveryUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderUncheckedUpdateWithoutUserInput = {
@@ -20490,6 +21898,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUncheckedUpdateManyWithoutOrderNestedInput
     masterQrToken?: QrTokenUncheckedUpdateOneWithoutOrderNestedInput
+    pdfDeliveries?: PdfDeliveryUncheckedUpdateManyWithoutOrderNestedInput
   }
 
   export type OrderUncheckedUpdateManyWithoutUserInput = {
@@ -20820,6 +22229,15 @@ export namespace Prisma {
     createdAt?: Date | string
   }
 
+  export type PdfDeliveryCreateManyOrderInput = {
+    id?: string
+    channel: string
+    status?: string
+    error?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type ParticipantUpdateWithoutOrderInput = {
     id?: StringFieldUpdateOperationsInput | string
     fullNameKtp?: StringFieldUpdateOperationsInput | string
@@ -20889,6 +22307,33 @@ export namespace Prisma {
     communityName?: NullableStringFieldUpdateOperationsInput | string | null
     bibNumber?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PdfDeliveryUpdateWithoutOrderInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    channel?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PdfDeliveryUncheckedUpdateWithoutOrderInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    channel?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type PdfDeliveryUncheckedUpdateManyWithoutOrderInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    channel?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type AdminCreateManyRoleInput = {
@@ -21034,6 +22479,10 @@ export namespace Prisma {
      * @deprecated Use OrderDefaultArgs instead
      */
     export type OrderArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = OrderDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use PdfDeliveryDefaultArgs instead
+     */
+    export type PdfDeliveryArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = PdfDeliveryDefaultArgs<ExtArgs>
     /**
      * @deprecated Use ParticipantDefaultArgs instead
      */

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import { coreApi } from '../config/midtrans';
+import { queueAutomaticPdfDeliveries } from '../services/pdf-delivery.service';
 
 const updateOrderStatusSchema = z.object({
   status: z.enum(['PENDING', 'SETTLEMENT', 'CAPTURE', 'CANCEL', 'EXPIRE', 'DENY', 'REFUND']),
@@ -118,10 +119,16 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
       return res.status(404).json({ status: 'error', message: 'Pesanan tidak ditemukan.' });
     }
 
-    const updated = await prisma.order.update({
-      where: { id },
-      data: { status },
-      include: { user: true },
+    const updated = await prisma.$transaction(async tx => {
+      const result = await tx.order.update({
+        where: { id },
+        data: { status },
+        include: { user: true },
+      });
+      if (['SETTLEMENT', 'CAPTURE'].includes(status) && !['SETTLEMENT', 'CAPTURE'].includes(existing.status)) {
+        await queueAutomaticPdfDeliveries(tx, id);
+      }
+      return result;
     });
 
     await prisma.log.create({
@@ -280,6 +287,7 @@ export const syncAllMidtransOrders = async (req: AuthenticatedRequest, res: Resp
               where: { id: order.id },
               data: { status: 'SETTLEMENT' },
             });
+            await queueAutomaticPdfDeliveries(tx, order.id);
 
             for (const p of order.participants || []) {
               if (!p.bibNumber) {
@@ -313,7 +321,7 @@ export const syncAllMidtransOrders = async (req: AuthenticatedRequest, res: Resp
           updatedCancelled++;
         }
       } catch (err: any) {
-        // Abaikan transaksi yang belum terdaftar di Midtrans Sandbox/Prod
+        console.warn('[SYNC ALL MIDTRANS] Gagal memproses order:', order.id, err.message);
       }
     }
 

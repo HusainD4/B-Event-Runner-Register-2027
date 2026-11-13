@@ -106,7 +106,23 @@ model Order {
   user             User          @relation(fields: [userId], references: [id])
   participants     Participant[] 
   masterQrToken    QrToken?      @relation("OrderMasterQrToken")
+  pdfDeliveries    PdfDelivery[]
   @@map("orders")
+}
+
+model PdfDelivery {
+  id        String   @id @default(uuid())
+  orderId   String
+  channel   String   @db.VarChar(10)
+  status    String   @default("PENDING") @db.VarChar(20)
+  error     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, channel])
+  @@index([status, createdAt])
+  @@map("pdf_deliveries")
 }
 
 // -------------------------------------------------------------

@@ -9,16 +9,7 @@ import {
   type BibGenerationTiming,
 } from '../services/bib.service';
 import { getQrPrefix, saveQrPrefix } from '../services/qr-crypto.service';
-
-const DEFAULT_INSTRUCTIONS = {
-  title: 'Petunjuk Pengambilan Racepack & Race Day:',
-  points: [
-    'Tunjukkan E-Tiket ini (versi cetak atau layar ponsel) beserta KTP asli saat pengambilan Racepack (RPC).',
-    'Pengambilan paket lomba dilaksanakan pada H-2 s/d H-1 perlombaan di Sekretariat Race Village Alun-Alun Kota Tegal.',
-    'Nomor BIB dada wajib disematkan di bagian depan jersey selama lomba agar terdeteksi oleh timing system.',
-    'Apabila berhalangan mengambil langsung, pengambilan dapat diwakilkan dengan menyertakan Surat Kuasa dan fotokopi KTP peserta bersangkutan.',
-  ],
-};
+import { DEFAULT_INSTRUCTIONS, loadRacepackInstructions } from '../services/racepack-instructions.service';
 
 /**
  * 1. Ambil Pengaturan BIB Lengkap (Global + Daftar Event Config)
@@ -174,26 +165,13 @@ export const saveAdminQrSettings = async (req: AuthenticatedRequest, res: Respon
  */
 export const getRacepackInstructions = async (req: any, res: Response): Promise<any> => {
   try {
-    const setting = await prisma.appSetting.findUnique({
-      where: { key: 'racepack_instructions' },
-    });
-
-    if (setting && setting.value) {
-      return res.status(200).json({
-        status: 'success',
-        data: JSON.parse(setting.value),
-      });
-    }
-
     return res.status(200).json({
       status: 'success',
-      data: DEFAULT_INSTRUCTIONS,
+      data: await loadRacepackInstructions(),
     });
-  } catch {
-    return res.status(200).json({
-      status: 'success',
-      data: DEFAULT_INSTRUCTIONS,
-    });
+  } catch (error) {
+    console.error('[GET RACEPACK INSTRUCTIONS ERROR]:', error);
+    return res.status(500).json({ status: 'error', message: 'Gagal mengambil petunjuk racepack.' });
   }
 };
 

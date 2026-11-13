@@ -7,6 +7,7 @@ import { initSocketServer } from './sockets';
 import { logger } from './utils/logger';
 import { ensureDefaultRolesInDatabase } from './controllers/admin.rbac.controller';
 import { expirePendingOrders } from './services/order-expiration.service';
+import { startPdfDeliveryWorker, stopPdfDeliveryWorker } from './services/pdf-delivery.service';
 
 // 1. Buat HTTP Server menggunakan instance Express (app)
 const httpServer = http.createServer(app);
@@ -24,14 +25,9 @@ let orderExpiryInterval: NodeJS.Timeout | null = null;
 const startServer = async () => {
   try {
     // A. Tes koneksi Database Prisma (MySQL)
-    try {
-      await prisma.$connect();
-      logger.info('✅ [DATABASE] Koneksi ke database MySQL berhasil terhubung.');
-      await ensureDefaultRolesInDatabase();
-    } catch (dbError: any) {
-      if (env.NODE_ENV === 'production') throw dbError;
-      logger.warn('⚠️ [DATABASE WARNING] Belum terhubung ke MySQL di localhost:3306. Pastikan MySQL di XAMPP sudah aktif.');
-    }
+    await prisma.$connect();
+    logger.info('✅ [DATABASE] Koneksi ke database MySQL berhasil terhubung.');
+    await ensureDefaultRolesInDatabase();
 
     // B. Tes koneksi Redis
     try {
@@ -56,7 +52,9 @@ const startServer = async () => {
       }
     });
 
-    // C. Jalankan HTTP & WebSocket Server
+    // C. Start the PDF queue before accepting requests.
+    await startPdfDeliveryWorker();
+    // D. Jalankan HTTP & WebSocket Server
     httpServer.listen(Number(PORT), HOST, () => {
       orderExpiryInterval = setInterval(() => {
         expirePendingOrders().catch(error => {
@@ -83,6 +81,7 @@ const handleGracefulShutdown = async (signal: string) => {
   if (orderExpiryInterval) clearInterval(orderExpiryInterval);
   
   try {
+    await stopPdfDeliveryWorker();
     // Tutup koneksi HTTP/Socket
     httpServer.close(async () => {
       logger.info('🔌 HTTP Server ditutup.');

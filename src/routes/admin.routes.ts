@@ -102,8 +102,11 @@ import {
   disconnectWhatsAppSession,
   getNotificationLogs,
   dispatchSingleNotification,
+  dispatchManualPdf,
   dispatchBatchNotifications,
   sendWhatsAppDirectMessage,
+  getWhatsAppHistory,
+  clearWhatsAppHistory,
 } from '../controllers/admin.notification.controller';
 
 import {
@@ -264,10 +267,13 @@ router.get('/notifications/whatsapp/session', requirePermission('whatsapp:sessio
 router.post('/notifications/whatsapp/qr', requirePermission('whatsapp:session'), generateWhatsAppQr);
 router.post('/notifications/whatsapp/disconnect', requirePermission('whatsapp:session'), disconnectWhatsAppSession);
 router.post('/notifications/whatsapp/send-direct', requirePermission('whatsapp:chat'), sendWhatsAppDirectMessage);
+router.get('/notifications/whatsapp/history/:orderId', requirePermission('whatsapp:chat'), getWhatsAppHistory);
+router.delete('/notifications/whatsapp/history/:orderId', requirePermission('whatsapp:chat'), clearWhatsAppHistory);
 
 // Log Notifikasi & Dispatch Manual
 router.get('/notifications/logs', requirePermission('notifications:read'), getNotificationLogs);
 router.post('/notifications/dispatch-single', requirePermission('notifications:dispatch'), dispatchSingleNotification);
+router.post('/notifications/dispatch-pdf', requirePermission('notifications:dispatch'), dispatchManualPdf);
 router.post('/notifications/dispatch-batch', requirePermission('notifications:dispatch'), dispatchBatchNotifications);
 
 // ==============================================================

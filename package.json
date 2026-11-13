@@ -11,7 +11,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:bootstrap-superadmin": "tsx prisma/bootstrap-superadmin.ts",
     "db:reset-admin": "tsx prisma/reset-and-seed-admin.ts",
-    "test": "npm run build && node --import tsx --test tests/backup.test.mjs tests/clear-participants.test.mjs tests/production-readiness.test.mjs tests/webhook-hardening.test.mjs tests/whatsapp-session.test.mjs"
+    "test": "npm --prefix ../frontend run build && npm run build && node --import tsx --test tests/backup.test.mjs tests/clear-participants.test.mjs tests/production-readiness.test.mjs tests/webhook-hardening.test.mjs tests/whatsapp-session.test.mjs tests/notification-templates.test.mjs tests/pdf-delivery.test.mjs tests/manual-pdf-dispatch.test.mjs tests/manual-pdf-ui.test.mjs tests/whatsapp-history.test.mjs"
   },
   "keywords": [
     "tegal-run",
@@ -37,6 +37,7 @@
     "jsonwebtoken": "^9.0.2",
     "midtrans-client": "^1.4.3",
     "nodemailer": "^10.4.0",
+    "playwright-core": "^1.56.1",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1",
     "winston": "^3.17.0",
@@ -48,6 +49,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.10.1",
     "@types/socket.io": "^3.0.2",
+    "pdfjs-dist": "^5.4.296",
     "prisma": "^5.22.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

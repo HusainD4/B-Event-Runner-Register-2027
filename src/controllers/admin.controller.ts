@@ -4,6 +4,7 @@ import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import { coreApi } from '../config/midtrans';
 import { getIo } from '../sockets';
+import { queueAutomaticPdfDeliveries } from '../services/pdf-delivery.service';
 
 /**
  * Controller untuk mengambil ringkasan statistik dashboard admin (Total Pendaftar, Total Pemasukan, Sisa Kuota, Rekonsiliasi Midtrans)
@@ -59,9 +60,12 @@ export const getAdminStats = async (req: AuthenticatedRequest, res: Response): P
             const fStatus = statusRes?.fraud_status || 'accept';
 
             if (mStatus === 'settlement' || (mStatus === 'capture' && fStatus === 'accept')) {
-              await prisma.order.update({
-                where: { id: ord.id },
-                data: { status: 'SETTLEMENT' },
+              await prisma.$transaction(async tx => {
+                const updated = await tx.order.updateMany({
+                  where: { id: ord.id, status: 'PENDING' },
+                  data: { status: 'SETTLEMENT' },
+                });
+                if (updated.count) await queueAutomaticPdfDeliveries(tx, ord.id);
               });
             } else if (['cancel', 'deny'].includes(mStatus)) {
               await prisma.order.update({
@@ -74,8 +78,8 @@ export const getAdminStats = async (req: AuthenticatedRequest, res: Response): P
                 data: { status: 'EXPIRE' },
               });
             }
-          } catch {
-            // Abaikan error individual Midtrans (order belum terbuat / sandbox)
+          } catch (error) {
+            console.warn('[DASHBOARD SYNC] Gagal memproses order:', ord.id, error);
           }
         }
       } catch {

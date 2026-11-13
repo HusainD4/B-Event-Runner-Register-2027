@@ -7,6 +7,8 @@ import { snap, coreApi } from '../config/midtrans';
 
 import { getGlobalBibSettings, assignBibToParticipant } from '../services/bib.service';
 import { generateSingleQrString, generateMasterQrString, decryptQrPayload } from '../services/qr-crypto.service';
+import { loadRacepackInstructions } from '../services/racepack-instructions.service';
+import { queueAutomaticPdfDeliveries } from '../services/pdf-delivery.service';
 
 /**
  * 1. PENCARIAN TIKET & STATUS OLEH PESERTA (PUBLIC)
@@ -202,6 +204,7 @@ async function syncOrderWithMidtrans(order: any, siteOrigin?: string): Promise<b
           where: { id: order.id },
           data: { status: 'SETTLEMENT' },
         });
+        await queueAutomaticPdfDeliveries(tx, order.id);
 
         for (const p of order.participants || []) {
           if (!p.bibNumber) {
@@ -353,17 +356,7 @@ export const getETicketData = async (req: Request, res: Response): Promise<any> 
     }
 
     // Ambil petunjuk racepack dari database
-    let racepackInstructions = null;
-    try {
-      const instrSetting = await prisma.appSetting.findUnique({
-        where: { key: 'racepack_instructions' },
-      });
-      if (instrSetting && instrSetting.value) {
-        racepackInstructions = JSON.parse(instrSetting.value);
-      }
-    } catch {
-      // ignore
-    }
+    const racepackInstructions = await loadRacepackInstructions();
 
     return res.status(200).json({
       status: 'success',
@@ -530,6 +523,7 @@ export const syncMidtransStatus = async (req: Request, res: Response): Promise<a
           where: { id: order.id },
           data: { status: 'SETTLEMENT' },
         });
+        await queueAutomaticPdfDeliveries(tx, order.id);
 
         // Generate nomor BIB dada resmi
         for (const p of order.participants) {
