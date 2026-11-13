@@ -56,7 +56,8 @@ test('racepack instructions use saved data, fall back only when absent, and surf
 test('email templates are accepted by settings and SMTP test reports success and failures', async () => {
   const saved = new Map();
   prisma.appSetting.upsert = async ({ where, create }) => { saved.set(where.key, create.value); };
-  prisma.log.create = async () => ({});
+  let auditDescription;
+  prisma.log.create = async ({ data }) => { auditDescription = data.description; return {}; };
   const settingsRes = response();
   await updateNotificationSettings({
     body: { template_email_paid: 'Lunas {fullName}', template_email_pending: 'Pending', template_email_cancel: 'Batal' },
@@ -66,6 +67,8 @@ test('email templates are accepted by settings and SMTP test reports success and
   assert.equal(saved.get('template_email_paid'), 'Lunas {fullName}');
   assert.equal(saved.get('template_email_pending'), 'Pending');
   assert.equal(saved.get('template_email_cancel'), 'Batal');
+  assert.match(auditDescription, /template_email_paid/);
+  assert.doesNotMatch(auditDescription, /Mode: AUTO|Lunas/);
 
   prisma.appSetting.findMany = async () => [
     { key: 'email_smtp_host', value: 'smtp.example.test' },

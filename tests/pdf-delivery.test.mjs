@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import nodemailer from 'nodemailer';
@@ -240,6 +241,55 @@ test('missing browser fails explicitly instead of producing a fake PDF', async (
   });
   assert.match(result.error, /Chromium tidak ditemukan/);
   assert.equal(result.buffer, undefined);
+});
+
+test('PDF renders from public frontend assets without sending participant data to the host', async () => {
+  const requests = [];
+  let fail = false;
+  const dist = path.resolve('..', 'frontend', 'dist');
+  const server = createServer(async (req, res) => {
+    requests.push(req.url);
+    if (fail) { res.writeHead(404); res.end(); return; }
+    try {
+      const file = path.join(dist, req.url.slice(1));
+      const body = await readFile(file);
+      const ext = path.extname(file);
+      const contentType = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' }[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'content-type': contentType });
+      res.end(body);
+    } catch {
+      res.writeHead(404); res.end();
+    }
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const env = { ...process.env, PDF_FRONTEND_URL: `http://127.0.0.1:${server.address().port}`, PDF_FRONTEND_DIST: path.join(sandbox, 'missing-dist') };
+  const workerData = {
+    order: { id: 'secret-order', participants: [{
+      fullNameKtp: 'Private Runner', nik: '1234567890123456', qrPayload: 'RACE|PRIVATE',
+      event: { ticketName: '5K', category: '5K', benefits: [] },
+    }], racepackInstructions: { title: 'Racepack', points: ['Bawa identitas'] } },
+    websiteSettings: { navbar_title: 'EVENT CONTOH' },
+  };
+  const run = () => new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('../scripts/render-ticket-pdf.mjs', import.meta.url), { env, workerData });
+    worker.once('message', resolve);
+    worker.once('error', reject);
+  });
+  try {
+    const result = await run();
+    assert.equal(result.error, undefined, result.error);
+    assert.equal(Buffer.from(result.buffer).subarray(0, 5).toString(), '%PDF-');
+    assert.ok(requests.includes('/e-ticket.html'));
+    assert.ok(requests.some(url => url.startsWith('/assets/')));
+    assert.ok(requests.every(url => /^\/(?:e-ticket\.html|assets\/[a-zA-Z0-9._-]+)$/.test(url)));
+    assert.ok(requests.every(url => !/secret|PRIVATE|1234567890123456/i.test(url)));
+    fail = true;
+    const failure = await run();
+    assert.match(failure.error, /e-ticket\.html \(HTTP 404\)/);
+    assert.equal(failure.buffer, undefined);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
 });
 
 test.after(async () => { await rm(sandbox, { recursive: true, force: true }); });

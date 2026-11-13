@@ -9,6 +9,43 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const frontendDist = path.resolve(process.env.PDF_FRONTEND_DIST || path.join(root, 'frontend', 'dist'));
 const origin = 'http://ticket.internal';
 
+function getFrontendOrigin() {
+  if (!process.env.PDF_FRONTEND_URL) return null;
+  const url = new URL(process.env.PDF_FRONTEND_URL);
+  const localHttp = url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if ((!localHttp && url.protocol !== 'https:') || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('PDF_FRONTEND_URL harus berupa origin HTTPS tanpa path, kredensial, query, atau fragment.');
+  }
+  return url.origin;
+}
+
+async function fetchFrontendAsset(frontendOrigin, relative) {
+  const response = await fetch(new URL(`/${relative}`, frontendOrigin), {
+    redirect: 'error',
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const declaredLength = Number(response.headers.get('content-length'));
+  const maxBytes = 10 * 1024 * 1024;
+  if (declaredLength > maxBytes) throw new Error('Ukuran aset melebihi 10 MB.');
+  const chunks = [];
+  let length = 0;
+  for await (const chunk of response.body) {
+    length += chunk.length;
+    if (length > maxBytes) {
+      throw new Error('Ukuran aset melebihi 10 MB.');
+    }
+    chunks.push(chunk);
+  }
+  const contentType = response.headers.get('content-type') || '';
+  if ((relative.endsWith('.html') && !contentType.toLowerCase().includes('text/html'))
+    || (relative.endsWith('.js') && !/javascript|ecmascript/i.test(contentType))
+    || (relative.endsWith('.css') && !contentType.toLowerCase().includes('text/css'))) {
+    throw new Error(`Tipe konten tidak sesuai untuk ${relative}: ${contentType || 'tidak tersedia'}.`);
+  }
+  return Buffer.concat(chunks);
+}
+
 async function browserExecutable() {
   const candidates = process.env.PDF_CHROME_PATH ? [process.env.PDF_CHROME_PATH] : process.platform === 'win32'
     ? [
@@ -29,6 +66,8 @@ async function browserExecutable() {
 }
 
 async function render() {
+  const frontendOrigin = getFrontendOrigin();
+  const allowedAssets = new Set();
   const qrOptions = {
     width: 480,
     margin: 4,
@@ -72,9 +111,15 @@ async function render() {
       if (request.method() === 'GET' && url.origin === origin) {
         const relative = url.pathname === '/e-ticket.html' ? 'e-ticket.html'
           : /^\/assets\/[a-zA-Z0-9._-]+$/.test(url.pathname) ? url.pathname.slice(1) : null;
-        if (relative) {
+        if (relative && (!frontendOrigin || relative === 'e-ticket.html' || allowedAssets.has(relative))) {
           try {
-            const body = await readFile(path.join(frontendDist, relative));
+            const body = frontendOrigin
+              ? await fetchFrontendAsset(frontendOrigin, relative)
+              : await readFile(path.join(frontendDist, relative));
+            if (frontendOrigin && /\.(?:html|js|css)$/.test(relative)) {
+              const matches = body.toString('utf8').matchAll(/(?:\/assets\/|\.\/)([a-zA-Z0-9._-]+\.(?:js|css|woff2?|ttf|svg|png|jpe?g|webp))/g);
+              for (const match of matches) allowedAssets.add(`assets/${match[1]}`);
+            }
             const ext = path.extname(relative);
             const contentType = ({
               '.html': 'text/html; charset=utf-8',
@@ -88,13 +133,23 @@ async function render() {
           } catch (error) {
             errors.push(`Aset e-ticket tidak tersedia: ${relative} (${error.message})`);
           }
+        } else if (relative && frontendOrigin) {
+          errors.push(`Aset e-ticket tidak terdaftar dalam build: ${relative}`);
         }
       }
       await route.abort('blockedbyclient');
     });
     await page.emulateMedia({ media: 'print' });
-    await page.goto(`${origin}/e-ticket.html?orderId=pdf`, { waitUntil: 'load', timeout: 30_000 });
-    await page.waitForFunction(() => document.getElementById('ticketMount')?.dataset.renderStatus, null, { timeout: 30_000 });
+    try {
+      await page.goto(`${origin}/e-ticket.html?orderId=pdf`, { waitUntil: 'load', timeout: 30_000 });
+    } catch (error) {
+      throw new Error(errors.length ? errors.join('; ') : `Gagal membuka halaman E-Tiket: ${error.message}`);
+    }
+    try {
+      await page.waitForFunction(() => document.getElementById('ticketMount')?.dataset.renderStatus, null, { timeout: 30_000 });
+    } catch (error) {
+      throw new Error(errors.length ? errors.join('; ') : `E-Tiket belum siap dirender: ${error.message}`);
+    }
     const state = await page.evaluate(async () => {
       await document.fonts.ready;
       const images = [...document.querySelectorAll('#ticketMount img')];

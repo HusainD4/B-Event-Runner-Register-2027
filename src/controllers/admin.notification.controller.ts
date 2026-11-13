@@ -126,7 +126,7 @@ export const updateNotificationSettings = async (req: AuthenticatedRequest, res:
     await prisma.log.create({
       data: {
         action: 'NOTIFICATION_SETTINGS_UPDATE',
-        description: `Admin (${req.admin?.username || 'admin'}) memperbarui konfigurasi WhatsApp & Email Gateway serta template pesan otomatis. Mode: ${payload.wa_dispatch_mode || 'AUTO'}`,
+        description: `Admin (${req.admin?.username || 'admin'}) memperbarui pengaturan notifikasi: ${allowedKeys.filter(key => payload[key] !== undefined).join(', ')}.`,
         adminId: req.admin?.adminId,
       },
     });
