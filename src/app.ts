@@ -79,7 +79,7 @@
 // app.get('/', (req: Request, res: Response) => {
 //   return res.status(200).json({ 
 //     status: "success", 
-//     message: "🚀 Backend Server Tegal Run 2027 berjalan dengan lancar!",
+//     message: "🚀 Backend Server Tegal Run 2026 berjalan dengan lancar!",
 //     timestamp: new Date().toISOString()
 //   });
 // });
@@ -113,9 +113,11 @@ import routes from './routes/index.js';
 import { setSecurityHeaders } from './middlewares/security.js';
 import { globalErrorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { emitDataChanged } from './sockets/index.js';
+import { env } from './config/env.js';
 
 // Inisialisasi Aplikasi Express
 const app = express();
+if (env.TRUST_PROXY === 'loopback') app.set('trust proxy', 'loopback');
 
 const getChangedTopics = (path: string, body: Record<string, unknown> = {}): string[] => {
   path = path.replace(/^\/api(?=\/|$)/, '');
@@ -181,7 +183,7 @@ app.use(express.urlencoded({ extended: true, limit: '500kb' }));
 app.get('/', (req: Request, res: Response) => {
   return res.status(200).json({ 
     status: "success", 
-    message: "🚀 Backend Server Tegal Run 2027 berjalan dengan lancar!",
+    message: "🚀 Backend Server Tegal Run 2026 berjalan dengan lancar!",
     timestamp: new Date().toISOString()
   });
 });

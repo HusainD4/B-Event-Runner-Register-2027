@@ -9,6 +9,11 @@ const envSchema = z.object({
   // Mode Aplikasi
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().transform((val) => parseInt(val, 10)).default('3000' as any),
+  HOST: z.string().optional(),
+  TRUST_PROXY: z.enum(['false', 'loopback']).default('false'),
+  REDIS_HOST: z.string().default('localhost'),
+  REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
+  REDIS_PASSWORD: z.string().optional(),
 
   // Database XAMPP / MySQL
   DATABASE_URL: z.string().min(1, "DATABASE_URL wajib diisi di file .env"),

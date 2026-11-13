@@ -1,12 +1,12 @@
 {
-  "name": "siexa-backend-2027",
+  "name": "tegal-run-backend-2027",
   "version": "1.0.0",
   "description": "Backend API untuk Tegal Run 2027 - War Tiket & Registration System",
   "main": "dist/server.js",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && tsc",
+    "build": "tsc && node scripts/prepare-dist.mjs",
     "start": "node dist/server.js",
     "db:seed": "tsx prisma/seed.ts",
     "db:bootstrap-superadmin": "tsx prisma/bootstrap-superadmin.ts",

@@ -40,9 +40,9 @@ export const getNotificationSettings = async (req: AuthenticatedRequest, res: Re
       email_smtp_port: '587',
       email_smtp_user: '',
       email_smtp_pass: '',
-      email_from_name: 'Panitia Resmi Tegal Run 2027',
-      template_msg_paid: `Halo {fullName}! 🏃‍♂️🎉\n\nTerima kasih banyak telah menyelesaikan pembayaran pendaftaran Tegal Run 2027. Pembayaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah BERHASIL diverifikasi dan LUNAS!\n\n📋 Detail Registrasi:\n• Kategori: {ticketName}\n• Nomor BIB Dada: {bibNumber}\n• Status Pembayaran: LUNAS (SETTLEMENT)\n\n📄 File E-Tiket Resmi (PDF):\nSilakan unduh dan simpan berkas E-Tiket resmi Anda melalui tautan berikut:\n👉 {eTicketUrl}\n\n🙏 Ucapan Terima Kasih:\nPanitia Tegal Run 2027 mengucapkan selamat bergabung kepada {fullName}! Persiapkan fisik dan stamina terbaik Anda. Sampai jumpa di garis start Alun-Alun Kota Tegal!\n\nSalam Hangat,\nPanitia Pelaksana Tegal Run 2027`,
-      template_msg_pending: `Halo {fullName}! 👋\n\nPendaftaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah kami terima dan saat ini sedang MENUNGGU PEMBAYARAN.\n\nSegera selesaikan transaksi Anda sebelum batas waktu habis melalui tautan pembayaran resmi berikut:\n👉 {paymentUrl}\n\nSetelah pembayaran terverifikasi, sistem akan otomatis mengirimkan E-Tiket resmi dalam format digital PDF beserta nomor BIB Anda.\n\nTerima kasih,\nPanitia Tegal Run 2027`,
+      email_from_name: 'Panitia Resmi Tegal Run 2026',
+      template_msg_paid: `Halo {fullName}! 🏃‍♂️🎉\n\nTerima kasih banyak telah menyelesaikan pembayaran pendaftaran Tegal Run 2026. Pembayaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah BERHASIL diverifikasi dan LUNAS!\n\n📋 Detail Registrasi:\n• Kategori: {ticketName}\n• Nomor BIB Dada: {bibNumber}\n• Status Pembayaran: LUNAS (SETTLEMENT)\n\n📄 File E-Tiket Resmi (PDF):\nSilakan unduh dan simpan berkas E-Tiket resmi Anda melalui tautan berikut:\n👉 {eTicketUrl}\n\n🙏 Ucapan Terima Kasih:\nPanitia Tegal Run 2026 mengucapkan selamat bergabung kepada {fullName}! Persiapkan fisik dan stamina terbaik Anda. Sampai jumpa di garis start Alun-Alun Kota Tegal!\n\nSalam Hangat,\nPanitia Pelaksana Tegal Run 2026`,
+      template_msg_pending: `Halo {fullName}! 👋\n\nPendaftaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah kami terima dan saat ini sedang MENUNGGU PEMBAYARAN.\n\nSegera selesaikan transaksi Anda sebelum batas waktu habis melalui tautan pembayaran resmi berikut:\n👉 {paymentUrl}\n\nSetelah pembayaran terverifikasi, sistem akan otomatis mengirimkan E-Tiket resmi dalam format digital PDF beserta nomor BIB Anda.\n\nTerima kasih,\nPanitia Tegal Run 2026`,
       template_msg_cancel: `Halo {fullName},\n\nPesanan tiket {ticketName} (Order ID: {orderId}) telah DIBATALKAN. Kuota tiket telah dikembalikan ke sistem.`,
     };
 
@@ -237,7 +237,7 @@ export const getNotificationLogs = async (req: AuthenticatedRequest, res: Respon
         customerEmail: ord.user?.email || '-',
         participantCount: ord.participants.length,
         ticketCategory: firstP?.event?.category || '10K',
-        ticketName: firstP?.event?.ticketName || 'Tegal Run 2027',
+        ticketName: firstP?.event?.ticketName || 'Tegal Run 2026',
         bibNumbers: ord.participants.map((p) => p.bibNumber).filter(Boolean).join(', ') || '-',
         totalAmount: Number(ord.totalAmount),
         createdAt: ord.createdAt,
@@ -404,7 +404,7 @@ export const sendTestNotification = async (req: AuthenticatedRequest, res: Respo
     const errors: string[] = [];
 
     const isWaConnected = await whatsappSessionService.isConnected();
-    const testMessage = message || '🧪 [TEST] Ini adalah pesan uji coba dari Sistem Notifikasi Otomatis Tegal Run 2027.';
+    const testMessage = message || '🧪 [TEST] Ini adalah pesan uji coba dari Sistem Notifikasi Otomatis Tegal Run 2026.';
 
     if ((notifChannel === 'WA' || notifChannel === 'BOTH') && targetPhone) {
       try {

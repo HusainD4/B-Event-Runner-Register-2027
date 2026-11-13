@@ -60,6 +60,7 @@ import {
   createManualParticipant,
   updateParticipant,
   deleteParticipant,
+  clearParticipantData,
   updateParticipantBib,
 } from '../controllers/admin.participant.controller';
 
@@ -140,6 +141,7 @@ router.post('/auth/login', adminAuthLimiter, adminLogin);
 // ==============================================================
 router.use(verifyAuthToken, verifyAdminRole);
 router.post('/auth/logout', adminLogout);
+router.post('/participants/clear', requireSuperAdmin, clearParticipantData);
 
 // --- Profil Admin Sendiri ---
 router.get('/auth/me', getAdminProfile);

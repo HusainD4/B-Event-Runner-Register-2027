@@ -407,7 +407,7 @@ export const cancelOrder = async (req: Request, res: Response): Promise<any> => 
     if (order.status === 'SETTLEMENT') {
       return res.status(400).json({
         status: 'error',
-        message: '🚨 Tiket yang sudah berstatus LUNAS (SETTLEMENT) TIDAK DAPAT dibatalkan secara mandiri. Silakan hubungi panitia penyelenggara resmi Tegal Run 2027.',
+        message: '🚨 Tiket yang sudah berstatus LUNAS (SETTLEMENT) TIDAK DAPAT dibatalkan secara mandiri. Silakan hubungi panitia penyelenggara resmi Tegal Run 2026.',
       });
     }
 

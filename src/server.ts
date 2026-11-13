@@ -15,6 +15,7 @@ const httpServer = http.createServer(app);
 initSocketServer(httpServer);
 
 const PORT = env.PORT || 3000;
+const HOST = env.HOST || (env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0');
 let orderExpiryInterval: NodeJS.Timeout | null = null;
 
 /**
@@ -28,6 +29,7 @@ const startServer = async () => {
       logger.info('✅ [DATABASE] Koneksi ke database MySQL berhasil terhubung.');
       await ensureDefaultRolesInDatabase();
     } catch (dbError: any) {
+      if (env.NODE_ENV === 'production') throw dbError;
       logger.warn('⚠️ [DATABASE WARNING] Belum terhubung ke MySQL di localhost:3306. Pastikan MySQL di XAMPP sudah aktif.');
     }
 
@@ -55,7 +57,7 @@ const startServer = async () => {
     });
 
     // C. Jalankan HTTP & WebSocket Server
-    httpServer.listen(Number(PORT), '0.0.0.0', () => {
+    httpServer.listen(Number(PORT), HOST, () => {
       orderExpiryInterval = setInterval(() => {
         expirePendingOrders().catch(error => {
           logger.error('[ORDER EXPIRY] Gagal memproses pesanan kedaluwarsa:', error);
@@ -63,7 +65,7 @@ const startServer = async () => {
       }, 15_000);
       orderExpiryInterval.unref();
       console.log(`==================================================`);
-      console.log(`🚀 Server Tegal Run 2027 menyala di Port ${PORT}`);
+      console.log(`🚀 Server Tegal Run 2026 menyala di Port ${PORT}`);
       console.log(`🔗 Akses API: http://localhost:${PORT}/api`);
       console.log(`🌍 Environment: ${env.NODE_ENV}`);
       console.log(`==================================================`);

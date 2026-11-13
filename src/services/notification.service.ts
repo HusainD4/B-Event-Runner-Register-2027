@@ -136,7 +136,7 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
     }
 
     const firstP = order.participants[0];
-    const ticketName = firstP?.event?.ticketName || 'Tegal Run 2027';
+    const ticketName = firstP?.event?.ticketName || 'Tegal Run 2026';
     const bibNumbers = order.participants.map((p) => p.bibNumber).filter(Boolean).join(', ') || 'Sedang Diproses';
     const recipientPhone = order.user?.phoneNumber || firstP?.emergencyContactPhone;
     const recipientEmail = order.user?.email;
@@ -163,9 +163,9 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
 
     // Default template pesan otomatis lengkap dengan status pembayaran, link file E-Tiket PDF, dan ucapan terima kasih
     const defaultTemplates = {
-      PAID: `Halo {fullName}! 🏃‍♂️🎉\n\nTerima kasih banyak telah menyelesaikan pembayaran pendaftaran Tegal Run 2027. Pembayaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah BERHASIL diverifikasi dan LUNAS!\n\n📋 Detail Registrasi:\n• Kategori: {ticketName}\n• Nomor BIB Dada: {bibNumber}\n• Status Pembayaran: LUNAS (SETTLEMENT)\n\n📄 File E-Tiket Resmi (PDF):\nSilakan unduh dan simpan berkas E-Tiket resmi Anda melalui tautan berikut:\n👉 {eTicketUrl}\n\n🙏 Ucapan Terima Kasih:\nPanitia Tegal Run 2027 mengucapkan selamat bergabung kepada {fullName}! Persiapkan fisik dan stamina terbaik Anda. Sampai jumpa di garis start Alun-Alun Kota Tegal!\n\nSalam Hangat,\nPanitia Pelaksana Tegal Run 2027`,
-      PENDING: `Halo {fullName}! 👋\n\nPendaftaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah kami terima dan saat ini sedang MENUNGGU PEMBAYARAN.\n\nSegera selesaikan transaksi Anda sebelum batas waktu habis melalui tautan pembayaran resmi berikut:\n👉 {paymentUrl}\n\nSetelah pembayaran terverifikasi, sistem akan otomatis mengirimkan E-Tiket resmi dalam format digital PDF beserta nomor BIB Anda.\n\nTerima kasih,\nPanitia Tegal Run 2027`,
-      CANCEL: `Halo {fullName},\n\nPesanan tiket {ticketName} (Order ID: {orderId}) telah DIBATALKAN. Kuota tiket telah dilepaskan kembali ke sistem.\n\nJika ingin mendaftar kembali, silakan kunjungi website resmi Tegal Run 2027.`,
+      PAID: `Halo {fullName}! 🏃‍♂️🎉\n\nTerima kasih banyak telah menyelesaikan pembayaran pendaftaran Tegal Run 2026. Pembayaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah BERHASIL diverifikasi dan LUNAS!\n\n📋 Detail Registrasi:\n• Kategori: {ticketName}\n• Nomor BIB Dada: {bibNumber}\n• Status Pembayaran: LUNAS (SETTLEMENT)\n\n📄 File E-Tiket Resmi (PDF):\nSilakan unduh dan simpan berkas E-Tiket resmi Anda melalui tautan berikut:\n👉 {eTicketUrl}\n\n🙏 Ucapan Terima Kasih:\nPanitia Tegal Run 2026 mengucapkan selamat bergabung kepada {fullName}! Persiapkan fisik dan stamina terbaik Anda. Sampai jumpa di garis start Alun-Alun Kota Tegal!\n\nSalam Hangat,\nPanitia Pelaksana Tegal Run 2026`,
+      PENDING: `Halo {fullName}! 👋\n\nPendaftaran tiket {ticketName} (Order ID: {orderId}) sebesar {totalAmount} telah kami terima dan saat ini sedang MENUNGGU PEMBAYARAN.\n\nSegera selesaikan transaksi Anda sebelum batas waktu habis melalui tautan pembayaran resmi berikut:\n👉 {paymentUrl}\n\nSetelah pembayaran terverifikasi, sistem akan otomatis mengirimkan E-Tiket resmi dalam format digital PDF beserta nomor BIB Anda.\n\nTerima kasih,\nPanitia Tegal Run 2026`,
+      CANCEL: `Halo {fullName},\n\nPesanan tiket {ticketName} (Order ID: {orderId}) telah DIBATALKAN. Kuota tiket telah dilepaskan kembali ke sistem.\n\nJika ingin mendaftar kembali, silakan kunjungi website resmi Tegal Run 2026.`,
     };
 
     let messageBody = '';
@@ -201,7 +201,7 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
           },
         });
 
-        const fromName = cfg.email_from_name || 'Tegal Run 2027';
+        const fromName = cfg.email_from_name || 'Tegal Run 2026';
         const subject =
           payload.type === 'PAID'
             ? `✅ E-Tiket Resmi Lunas & Berkas PDF: ${ticketName} - ${recipientName}`
@@ -212,12 +212,12 @@ export async function sendOrderNotification(payload: NotificationPayload): Promi
         const htmlBody = `
           <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1E293B; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E2E8F0; border-radius: 8px;">
             <div style="background: #FF6B00; color: #FFF; padding: 16px; border-radius: 6px; text-align: center; margin-bottom: 20px;">
-              <h2 style="margin: 0; font-size: 1.4rem;">TEGAL RUN 2027</h2>
+              <h2 style="margin: 0; font-size: 1.4rem;">TEGAL RUN 2026</h2>
               <p style="margin: 4px 0 0; font-size: 0.9rem; opacity: 0.9;">Notifikasi Resmi Tiket & Pembayaran</p>
             </div>
             <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.95rem;">${messageBody}</pre>
             <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #E2E8F0; font-size: 0.8rem; color: #64748B; text-align: center;">
-              Pesan ini dikirim secara otomatis oleh Sistem Portal Resmi Tegal Run 2027.
+              Pesan ini dikirim secara otomatis oleh Sistem Portal Resmi Tegal Run 2026.
             </div>
           </div>
         `;

@@ -56,7 +56,7 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
         ? 'Pendaftaran ditutup otomatis karena acara telah dimulai.'
         : globalTimerPhase === 'COMPLETED'
           ? 'Pendaftaran ditutup karena hari pelaksanaan acara telah lewat.'
-          : customMessage || 'Pendaftaran Tegal Run 2027 sedang ditutup.';
+          : customMessage || 'Pendaftaran Tegal Run 2026 sedang ditutup.';
       return res.status(400).json({ 
         status: "error", 
         message: `${closureMessage}${operatingHours ? ` Jam operasional pendaftaran: ${operatingHours}.` : ''}`
@@ -163,7 +163,7 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
     // Kelola Identitas User Pemesan
     const cleanEmail = bookerEmail ? String(bookerEmail).toLowerCase().trim() : (participants[0]?.email ? String(participants[0].email).toLowerCase().trim() : null);
     const cleanPhone = normalizePhone(bookerPhone || participants[0]?.phoneNumber || participants[0]?.emergencyContactPhone || '081234567890');
-    const cleanName = bookerName ? String(bookerName).trim() : (participants[0]?.fullNameKtp || 'Peserta Tegal Run 2027');
+    const cleanName = bookerName ? String(bookerName).trim() : (participants[0]?.fullNameKtp || 'Peserta Tegal Run 2026');
 
     let targetUser: any = null;
     if (cleanEmail) {

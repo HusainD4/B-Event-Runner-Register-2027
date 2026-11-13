@@ -3,14 +3,14 @@ import { PrismaClient } from '../src/generated/client/index.js';
 import { hashPassword } from '../src/utils/password.js';
 
 // Ubah expectedDatabase sesuai dengan nama database online Anda di Aiven (misal: 'defaultdb' atau nama baru Anda)
-const expectedDatabase = process.env.EXPECTED_DB_NAME || 'defaultdb';
+// const expectedDatabase = process.env.EXPECTED_DB_NAME || 'defaultdb';
 const databaseUrl = process.env.DATABASE_URL;
 
 function isPrivateOrLocalHost(hostname: string): boolean {
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
   
   // Izinkan juga hostname cloud/online seperti aivencloud.com
-  if (hostname.includes('aivencloud.com') || hostname.includes('upstash.io')) return true;
+  // if (hostname.includes('aivencloud.com') || hostname.includes('upstash.io')) return true;
 
   const octets = hostname.split('.').map(Number);
   if (octets.length !== 4 || octets.some(value => !Number.isInteger(value) || value < 0 || value > 255)) {

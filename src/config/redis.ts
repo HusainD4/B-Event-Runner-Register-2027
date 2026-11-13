@@ -5,9 +5,9 @@ import { env } from './env';
 const RedisClient = (Redis as any).default || Redis;
 
 export const redis = new RedisClient({
-  host: (env as any).REDIS_HOST || 'localhost',
-  port: Number((env as any).REDIS_PORT) || 6379,
-  password: (env as any).REDIS_PASSWORD || undefined,
+  host: env.REDIS_HOST,
+  port: env.REDIS_PORT,
+  password: env.REDIS_PASSWORD || undefined,
   maxRetriesPerRequest: null,
   retryStrategy(times: number) {
     // Batasi percobaan ulang atau matikan reconnect otomatis jika Redis lokal mati

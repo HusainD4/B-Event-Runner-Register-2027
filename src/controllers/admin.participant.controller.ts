@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
+import { emitAdminEvent, emitDataChanged, emitStockUpdate } from '../sockets';
 
 const participantAdminSchema = z.object({
   eventId: z.string().uuid('Event ID tidak valid'),
@@ -23,6 +24,86 @@ const participantAdminSchema = z.object({
   communityName: z.string().nullable().optional(),
   bibNumber: z.string().nullable().optional(),
 });
+
+export const clearParticipantData = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  if (!req.is('application/json')) {
+    return res.status(415).json({ status: 'error', message: 'Permintaan harus menggunakan application/json.' });
+  }
+  if (req.body?.confirmation !== 'KOSONGKAN DATA PESERTA') {
+    return res.status(400).json({ status: 'error', message: 'Ketik KOSONGKAN DATA PESERTA untuk mengonfirmasi.' });
+  }
+  try {
+    const result = await prisma.$transaction(async tx => {
+      const maintenance = await tx.appSetting.findUnique({ where: { key: 'maintenance_enabled' } });
+      if (maintenance?.value !== 'true') throw new Error('RESET_MAINTENANCE_REQUIRED');
+
+      const pending = await tx.order.count({ where: { status: 'PENDING' } });
+      if (pending) throw new Error('RESET_PENDING_ORDERS');
+
+      const manualLogs = await tx.log.findMany({
+        where: { action: 'PARTICIPANT_MANUAL_CREATE', entityType: 'Participant', entityId: { not: null } },
+        select: { entityId: true },
+      });
+      const manualIds = new Set(manualLogs.map(log => log.entityId).filter((id): id is string => id !== null));
+      const participants = await tx.participant.findMany({
+        select: { id: true, eventId: true, order: { select: { status: true, midtransOrderId: true } } },
+      });
+      const restoreByEvent = new Map<string, number>();
+      for (const participant of participants) {
+        const order = participant.order;
+        if (['SETTLEMENT', 'CAPTURE'].includes(order.status) && order.midtransOrderId &&
+            !order.midtransOrderId.startsWith('OFFLINE-') && !manualIds.has(participant.id)) {
+          restoreByEvent.set(participant.eventId, (restoreByEvent.get(participant.eventId) || 0) + 1);
+        }
+      }
+
+      const stockUpdates: Array<{ eventId: string; stock: number; restored: number }> = [];
+      for (const [eventId, restored] of restoreByEvent) {
+        const event = await tx.event.update({
+          where: { id: eventId },
+          data: { stock: { increment: restored } },
+          select: { stock: true },
+        });
+        stockUpdates.push({ eventId, stock: event.stock, restored });
+      }
+      const qrTokens = await tx.qrToken.deleteMany();
+      const deletedParticipants = await tx.participant.deleteMany();
+      const orders = await tx.order.deleteMany();
+      await tx.appSetting.deleteMany({
+        where: { OR: [{ key: 'racepack_checkins' }, { key: { startsWith: 'payment_expiry_' } }] },
+      });
+      const restored = stockUpdates.reduce((sum, item) => sum + item.restored, 0);
+      await tx.log.create({
+        data: {
+          action: 'PARTICIPANT_DATA_CLEARED',
+          description: 'Superadmin mengosongkan data peserta, pesanan, QR, dan catatan racepack.',
+          adminId: req.admin?.adminId,
+          entityType: 'Participant',
+          metadata: { participants: deletedParticipants.count, orders: orders.count, qrTokens: qrTokens.count, restoredStock: restored },
+        },
+      });
+      return { participants: deletedParticipants.count, orders: orders.count, qrTokens: qrTokens.count, restoredStock: restored, stockUpdates };
+    }, { isolationLevel: 'Serializable', maxWait: 10_000, timeout: 60_000 });
+
+    for (const item of result.stockUpdates) emitStockUpdate(item.eventId, item.stock);
+    emitAdminEvent('admin:racepack_queue_changed', { type: 'reset' });
+    emitDataChanged(['participants', 'orders', 'racepack', 'racepack-view', 'dashboard', 'bib-settings', 'events', 'logs', 'public:events']);
+    return res.status(200).json({
+      status: 'success',
+      message: 'Data peserta dan pesanan berhasil dikosongkan.',
+      data: { participants: result.participants, orders: result.orders, qrTokens: result.qrTokens, restoredStock: result.restoredStock },
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'RESET_MAINTENANCE_REQUIRED') {
+      return res.status(409).json({ status: 'error', message: 'Aktifkan mode pemeliharaan sebelum mengosongkan data.' });
+    }
+    if (error instanceof Error && error.message === 'RESET_PENDING_ORDERS') {
+      return res.status(409).json({ status: 'error', message: 'Masih ada pesanan menunggu pembayaran. Selesaikan atau batalkan pesanan melalui prosedur pembayaran sebelum melanjutkan.' });
+    }
+    console.error('🚨 [CLEAR PARTICIPANT DATA ERROR]:', error);
+    return res.status(500).json({ status: 'error', message: 'Pengosongan data gagal atau hasilnya tidak dapat dipastikan. Periksa data dan log audit sebelum mencoba lagi.' });
+  }
+};
 
 export const getAdminParticipants = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {

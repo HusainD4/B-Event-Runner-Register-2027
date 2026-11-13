@@ -9,7 +9,7 @@ const router = Router();
 
 /**
  * POST /api/register
- * Endpoint utama untuk pendaftaran event / war tiket Tegal Run 2027
+ * Endpoint utama untuk pendaftaran event / war tiket Tegal Run 2026
  * Menggunakan pengaman berlapis:
  * 1. Rate Limiter (Mencegah spam request per IP)
  * 2. Bot Detection (Mencegah script/bot otomatis)

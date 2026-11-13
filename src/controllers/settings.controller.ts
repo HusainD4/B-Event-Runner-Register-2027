@@ -8,16 +8,38 @@ import { env } from '../config/env';
 
 export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   // Website Identity & Hero
-  site_title: "Tegal Run 2027 - Official Half Marathon & 5K Festival",
+  site_title: "Tegal Run 2026 - Official Half Marathon & 5K Festival",
   site_tagline: "Lari Bersama Menembus Batas di Kota Bahari",
-  navbar_title: "TEGAL RUN 2027",
+  navbar_title: "TEGAL RUN 2026",
   navbar_icon_mode: "ICON",
   navbar_icon: "fa-person-running",
   navbar_icon_url: "",
   favicon_url: "",
   hero_badge: "🔥 PENDAFTARAN RESMI DIBUKA",
-  hero_title: "Tegal Run 2027: Lari Bersama Menembus Batas",
-  hero_subtitle: "Bergabung bersama komunitas pelari dan rayakan setiap langkah di Tegal Run 2027.",
+  hero_title: "Tegal Run 2026: Lari Bersama Menembus Batas",
+  hero_animation: "SPEED",
+  theme_primary_color: "#006FBA",
+  theme_background_color: "#F3FBFF",
+  theme_surface_color: "#FFFFFF",
+  theme_border_color: "#CDEBF5",
+  theme_heading_color: "#062C65",
+  theme_text_color: "#152238",
+  theme_muted_color: "#46657C",
+  theme_nav_color: "#FFFFFF",
+  theme_button_color: "",
+  theme_button_text_color: "#FFFFFF",
+  theme_glow_color: "",
+  theme_ambient_color: "#B4F0FF",
+  theme_shadow_color: "#062C65",
+  theme_secondary_button_color: "#FFFFFF",
+  theme_secondary_text_color: "#062C65",
+  theme_input_color: "#FFFFFF",
+  theme_input_text_color: "#152238",
+  theme_nav_text_color: "#152238",
+  theme_section_colors: "",
+  jersey_gallery_images: "[]",
+  bib_preview_image_url: "",
+  hero_subtitle: "Bergabung bersama komunitas pelari dan rayakan setiap langkah di Tegal Run 2026.",
   hero_bg_image: "",
   coming_soon_title: "COMING SOON EVENT!",
   coming_soon_message: "Informasi lengkap acara akan segera hadir. Nantikan kabar terbaru dari kami!",
@@ -56,7 +78,7 @@ export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   contact_email: "kontak@tegalrun.id",
   contact_phone: "+62 812-3456-7890",
   contact_address: "Alun-Alun Kota Tegal, Jawa Tengah, Indonesia",
-  footer_copyright: "Hak Cipta Terpelihara © 2027 Panitia Resmi Tegal Run. Dilindungi Undang-Undang Republik Indonesia.",
+  footer_copyright: "Hak Cipta Terpelihara © 2026 Panitia Resmi Tegal Run. Dilindungi Undang-Undang Republik Indonesia.",
 
   // Live Event Stats Grid
   stat_1_val: "",
@@ -78,7 +100,7 @@ export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   // Legal & Perizinan
   legal_badge_label: "Kepatuhan Regulasi Indonesia",
   legal_title: "Perizinan & Kepatuhan Hukum Resmi",
-  legal_desc: "Tegal Run 2027 diselenggarakan dengan izin resmi pemerintah daerah, PASI, dan standar keselamatan medis internasional.",
+  legal_desc: "Tegal Run 2026 diselenggarakan dengan izin resmi pemerintah daerah, PASI, dan standar keselamatan medis internasional.",
   legal_item_1_title: "Rekomendasi Resmi PB PASI",
   legal_item_1_desc: "Tersertifikasi standar teknis rute dan aturan perlombaan atletik resmi nasional.",
   legal_item_2_title: "Izin Kepolisian & Dishub",
@@ -92,7 +114,7 @@ export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   privacy_modal_title: "Kebijakan Privasi Data Pribadi (UU PDP)",
   privacy_modal_subtitle: "Berdasarkan Undang-Undang Republik Indonesia Nomor 27 Tahun 2022",
   privacy_modal_content: `1. Pengendali Data Pribadi
-Pengendali Data Pribadi untuk seluruh aktivitas pendaftaran Tegal Run 2027 adalah Komite Pelaksana yang berkedudukan di Tegal, Jawa Tengah. Kami berkomitmen melindungi data pribadi Anda sesuai UU No. 27 Tahun 2022 tentang Perlindungan Data Pribadi (UU PDP) dan UU No. 1 Tahun 2024 tentang ITE.
+Pengendali Data Pribadi untuk seluruh aktivitas pendaftaran Tegal Run 2026 adalah Komite Pelaksana yang berkedudukan di Tegal, Jawa Tengah. Kami berkomitmen melindungi data pribadi Anda sesuai UU No. 27 Tahun 2022 tentang Perlindungan Data Pribadi (UU PDP) dan UU No. 1 Tahun 2024 tentang ITE.
 
 2. Data Pribadi yang Dikumpulkan
 Data yang kami kumpulkan mencakup:
@@ -127,7 +149,7 @@ Apabila terjadi bencana alam, kebakaran, kerusuhan sosial, atau kebijakan pemeri
 
   // Countdown & Registrasi
   IS_REGISTRATION_CLOSED: "false",
-  EVENT_TITLE: "Tegal Run 2027"
+  EVENT_TITLE: "Tegal Run 2026"
 };
 
 /**
@@ -506,7 +528,7 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
         registrationPhase: timerPhase === 'UPCOMING' && manualRegistrationClosed
           ? 'CLOSED'
           : timerPhase,
-        eventTitle: eventTitle || 'Tegal Run 2027',
+        eventTitle: eventTitle || 'Tegal Run 2026',
         registrationOperatingHours: getStatusSetting('registration_operating_hours'),
         registrationClosedMessage: getStatusSetting('registration_closed_message'),
         maintenanceEnabled: getStatusSetting('maintenance_enabled') === 'true',
@@ -612,6 +634,93 @@ export const updateWebsiteSettings = async (req: AuthenticatedRequest, res: Resp
     }
 
     const settingsPayload: Record<string, unknown> = { ...payload, ...navbarSettingsSchema.data };
+
+    if (payload.bib_preview_image_url !== undefined) {
+      const bibImageSchema = z.string().trim().max(2048).refine(value => {
+        if (!value) return true;
+        try { return ['http:', 'https:'].includes(new URL(value).protocol); }
+        catch { return false; }
+      });
+      const bibImage = bibImageSchema.safeParse(payload.bib_preview_image_url);
+      if (!bibImage.success) {
+        return res.status(400).json({ status: 'error', message: 'URL gambar contoh BIB harus kosong atau menggunakan HTTP atau HTTPS (maksimal 2048 karakter).' });
+      }
+      settingsPayload.bib_preview_image_url = bibImage.data;
+    }
+
+    if (payload.jersey_gallery_images !== undefined) {
+      if (typeof payload.jersey_gallery_images !== 'string' || payload.jersey_gallery_images.length > 11000) {
+        return res.status(400).json({ status: 'error', message: 'Format galeri jersey tidak valid.' });
+      }
+      let images: unknown;
+      try {
+        images = JSON.parse(payload.jersey_gallery_images);
+      } catch {
+        return res.status(400).json({ status: 'error', message: 'Format galeri jersey tidak valid.' });
+      }
+      const gallerySchema = z.array(z.string().max(2048).url().refine(value => {
+        try { return ['http:', 'https:'].includes(new URL(value).protocol); }
+        catch { return false; }
+      })).max(5);
+      if (!gallerySchema.safeParse(images).success) {
+        return res.status(400).json({ status: 'error', message: 'Galeri jersey hanya menerima maksimal 5 URL gambar HTTP atau HTTPS.' });
+      }
+      settingsPayload.jersey_gallery_images = JSON.stringify(images);
+    }
+
+    const appearanceSchema = z.object({
+      hero_animation: z.enum(['SPEED', 'PULSE', 'RISE', 'NONE']).optional(),
+      theme_primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_background_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_surface_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_border_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_heading_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_text_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_muted_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_nav_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_button_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_button_text_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_glow_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_ambient_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_shadow_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_secondary_button_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_secondary_text_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_input_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_input_text_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_nav_text_color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Gunakan warna HEX 6 digit.').optional(),
+      theme_section_colors: z.string().max(5000).optional(),
+    }).safeParse(payload);
+    if (!appearanceSchema.success) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Pengaturan tampilan hero tidak valid.',
+        errors: appearanceSchema.error.errors.map(error => ({
+          field: error.path.join('.'),
+          message: error.message
+        }))
+      });
+    }
+    Object.assign(settingsPayload, appearanceSchema.data);
+    if (appearanceSchema.data.theme_section_colors !== undefined) {
+      const sectionNames = ['hero', 'tickets', 'route', 'facilities', 'legal', 'faq', 'footer'] as const;
+      const sectionColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+      const sectionSchema = z.object({
+        background: sectionColor, heading: sectionColor, text: sectionColor,
+        accent: sectionColor, surface: sectionColor,
+        border: sectionColor.optional(), glow: sectionColor.optional(),
+        button: sectionColor.optional(), button_text: sectionColor.optional(),
+      }).strict();
+      const allSections = z.record(z.enum(sectionNames), sectionSchema);
+      let sectionData: unknown;
+      try {
+        sectionData = JSON.parse(appearanceSchema.data.theme_section_colors);
+      } catch {
+        return res.status(400).json({ status: 'error', message: 'Format warna per bagian tidak valid.' });
+      }
+      if (!allSections.safeParse(sectionData).success) {
+        return res.status(400).json({ status: 'error', message: 'Warna per bagian harus menggunakan format HEX 6 digit.' });
+      }
+    }
 
     const comingSoonSettingsSchema = z.object({
       coming_soon_title: z.string().trim().min(1).max(100).optional(),
