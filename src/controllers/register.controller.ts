@@ -4,6 +4,55 @@ import prisma from '../config/database'; // Menggunakan singleton database terpu
 import { sendOrderNotification } from '../services/notification.service';
 import { getEventRegistrationStatus, getEventTimerPhase } from '../utils/event-timing';
 
+type ParticipantNikInput = { eventId?: string; nik: string };
+
+async function findDuplicateParticipantNumbers(
+  participants: ParticipantNikInput[],
+  defaultEventId?: string
+): Promise<number[]> {
+  const entries = participants.map((participant, index) => ({
+    participantNumber: index + 1,
+    eventId: participant.eventId || defaultEventId,
+    nik: participant.nik,
+  }));
+  const validEntries = entries.filter((entry): entry is { participantNumber: number; eventId: string; nik: string } => Boolean(entry.eventId));
+  if (!validEntries.length) return [];
+
+  const existing = await prisma.participant.findMany({
+    where: {
+      OR: validEntries.map(entry => ({ eventId: entry.eventId, nik: entry.nik })),
+    },
+    select: { eventId: true, nik: true },
+  });
+  const existingKeys = new Set(existing.map(entry => `${entry.eventId}:${entry.nik}`));
+  const seenKeys = new Set<string>();
+  const duplicates: number[] = [];
+
+  validEntries.forEach(entry => {
+    const key = `${entry.eventId}:${entry.nik}`;
+    if (existingKeys.has(key) || seenKeys.has(key)) duplicates.push(entry.participantNumber);
+    seenKeys.add(key);
+  });
+
+  return duplicates;
+}
+
+export const checkParticipantNiks = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const duplicateParticipants = await findDuplicateParticipantNumbers(req.body.participants);
+    return res.status(200).json({
+      status: 'success',
+      data: { duplicateParticipants },
+    });
+  } catch (error) {
+    console.error('🚨 [ERROR] Check Participant NIK:', error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Validasi NIK tidak dapat dilakukan. Silakan coba beberapa saat lagi.',
+    });
+  }
+};
+
 export const registerEvent = async (req: Request, res: Response): Promise<any> => {
   try {
     // 1. Ambil data dari body (yang sudah dipastikan aman oleh Zod)
@@ -94,6 +143,15 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
       include: { jerseys: true }
     });
     const eventMap = new Map<string, any>(events.map(ev => [ev.id, ev]));
+    const duplicateParticipants = await findDuplicateParticipantNumbers(participants, eventId);
+    if (duplicateParticipants.length) {
+      return res.status(409).json({
+        status: 'error',
+        code: 'DUPLICATE_NIK',
+        message: `NIK peserta #${duplicateParticipants[0]} sudah terdaftar pada kategori yang sama dan tidak dapat digunakan lagi.`,
+        duplicateParticipants,
+      });
+    }
 
     // Validasi kuota dan status tutup untuk setiap kategori
     const eventCounts: Record<string, number> = {};

@@ -55,6 +55,17 @@ export const registerPayloadSchema = z.object({
   })
 });
 
+export const checkParticipantNiksSchema = z.object({
+  body: z.object({
+    participants: z.array(z.object({
+      eventId: z.string().uuid("Event ID tidak valid"),
+      nik: z.string().regex(/^\d{16}$/, "NIK harus berupa 16 digit angka"),
+    }))
+      .min(1, "Minimal harus memeriksa 1 peserta")
+      .max(10, "Maksimal 10 peserta dalam 1 kali pemeriksaan"),
+  })
+});
+
 // 3. Fungsi Middleware Pengeksekusi Zod
 export const validate = (schema: z.AnyZodObject) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<any> => {

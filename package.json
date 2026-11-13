@@ -11,7 +11,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:bootstrap-superadmin": "tsx prisma/bootstrap-superadmin.ts",
     "db:reset-admin": "tsx prisma/reset-and-seed-admin.ts",
-    "test": "npm run build && node --import tsx --test tests/backup.test.mjs tests/clear-participants.test.mjs tests/production-readiness.test.mjs tests/webhook-hardening.test.mjs"
+    "test": "npm run build && node --import tsx --test tests/backup.test.mjs tests/clear-participants.test.mjs tests/production-readiness.test.mjs tests/webhook-hardening.test.mjs tests/whatsapp-session.test.mjs"
   },
   "keywords": [
     "tegal-run",

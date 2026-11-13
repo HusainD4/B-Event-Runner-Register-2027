@@ -8,7 +8,6 @@ import { fileURLToPath } from 'node:url';
 
 const backend = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sandbox = await mkdtemp(path.join(tmpdir(), 'event-webhook-test-'));
-const previousCwd = process.cwd();
 Object.assign(process.env, {
   NODE_ENV: 'test',
   DATABASE_URL: 'mysql://test:test@127.0.0.1:1/test',
@@ -16,7 +15,7 @@ Object.assign(process.env, {
   MIDTRANS_CLIENT_KEY: 'test-client-key',
   JWT_SECRET: 'test-only-secret-at-least-32-characters',
 });
-process.chdir(sandbox);
+process.env.WHATSAPP_AUTH_DIR = path.join(sandbox, 'auth');
 
 const { default: prisma } = await import('../src/config/database.ts');
 const { handleMidtransWebhook } = await import('../src/controllers/webhook.controller.ts');
@@ -154,6 +153,5 @@ test('signature middleware rejects malformed signatures and accepts a valid SHA-
 });
 
 after(async () => {
-  process.chdir(previousCwd);
   await rm(sandbox, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });

@@ -26,29 +26,48 @@ interface QrWaiter {
   reject: (err: Error) => void;
 }
 
-const AUTH_DIR = path.join(process.cwd(), 'auth_info_baileys');
+const AUTH_DIR = process.env.WHATSAPP_AUTH_DIR
+  ? path.resolve(process.env.WHATSAPP_AUTH_DIR)
+  : path.join(process.cwd(), 'auth_info_baileys');
 const QR_TIMEOUT_MS = 60000;
 const RECONNECT_DELAY_MS = 3000;
 const AUTO_RECONNECT_DELAY_MS = 5000;
 const MAX_QR_RETRIES = 3;
 
-class WhatsAppSessionService {
+export class WhatsAppSessionService {
   private sock: WASocket | null = null;
   private currentQrDataUrl: string | null = null;
   private currentStatus: WhatsAppSessionState['status'] = 'DISCONNECTED';
   private connectedNumber: string | null = null;
   private deviceName: string | null = null;
   private syncedAt: string | null = null;
-  private isConnecting: boolean = false;
   private isDisconnecting: boolean = false;
   private qrWaiters: QrWaiter[] = [];
   private reconnectAttempts: number = 0;
+  private initPromise: Promise<WASocket> | null = null;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private generation = 0;
+  private sessionError: string | null = null;
 
-  constructor() {
+  constructor(autoRestore = true) {
     this.ensureAuthDir();
-    this.autoRestoreSession().catch((err) => {
-      console.warn('⚠️ Gagal auto-restore sesi WhatsApp:', err.message);
-    });
+    if (autoRestore) {
+      this.autoRestoreSession().catch((err) => {
+        console.warn('⚠️ Gagal auto-restore sesi WhatsApp:', err.message);
+      });
+    }
+  }
+
+  protected loadAuthState() {
+    return useMultiFileAuthState(AUTH_DIR);
+  }
+
+  protected fetchVersion() {
+    return fetchLatestBaileysVersion();
+  }
+
+  protected makeSocket(options: Parameters<typeof makeWASocket>[0]): WASocket {
+    return makeWASocket(options);
   }
 
   private ensureAuthDir() {
@@ -75,19 +94,9 @@ class WhatsAppSessionService {
     }
   }
 
-  /**
-   * Bersihkan socket lama dan putuskan sambungan sebelum membuat instance baru
-   */
-  private cleanUpExistingSocket() {
-    if (this.sock) {
-      try {
-        this.sock.ev.removeAllListeners('connection.update');
-        this.sock.ev.removeAllListeners('creds.update');
-        this.sock.end(undefined);
-      } catch {}
-      this.sock = null;
-    }
-    this.isConnecting = false;
+  private clearReconnectTimer() {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
   }
 
   /**
@@ -104,26 +113,38 @@ class WhatsAppSessionService {
    * Inisialisasi koneksi langsung WhatsApp Web (Baileys) tanpa pihak ketiga
    */
   async initSocket(): Promise<WASocket> {
+    if (this.isDisconnecting) throw new Error('Sesi WhatsApp sedang diputuskan.');
+    if (this.sessionError) throw new Error(this.sessionError);
     if (this.sock && this.currentStatus === 'CONNECTED') {
       return this.sock;
     }
 
-    if (this.isConnecting && this.sock) {
+    if (this.sock) {
       return this.sock;
     }
 
-    // Bersihkan socket gantung sebelumnya agar tidak terjadi duplikasi koneksi (penyebab utama kode 428)
-    this.cleanUpExistingSocket();
-    this.isConnecting = true;
+    if (this.initPromise) return this.initPromise;
+    this.clearReconnectTimer();
+    const generation = this.generation;
+    const promise = this.createSocket(generation);
+    this.initPromise = promise;
+    try {
+      return await promise;
+    } finally {
+      if (this.initPromise === promise) this.initPromise = null;
+    }
+  }
+
+  private async createSocket(generation: number): Promise<WASocket> {
     this.ensureAuthDir();
 
     try {
-      const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+      const { state, saveCreds } = await this.loadAuthState();
       // Gunakan default versi Baileys v7.0.0 resmi (terbaru & teruji)
       let version: [number, number, number] = [2, 3000, 1043857760];
 
       try {
-        const latest = await fetchLatestBaileysVersion();
+        const latest = await this.fetchVersion();
         if (latest && Array.isArray(latest.version)) {
           version = latest.version;
         }
@@ -131,7 +152,11 @@ class WhatsAppSessionService {
         // Fallback ke versi stabil
       }
 
-      const sock = makeWASocket({
+      if (generation !== this.generation) {
+        throw new Error('Inisialisasi WhatsApp dibatalkan karena sesi telah diputus.');
+      }
+
+      const sock = this.makeSocket({
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
@@ -149,6 +174,7 @@ class WhatsAppSessionService {
       sock.ev.on('creds.update', saveCreds);
 
       sock.ev.on('connection.update', async (update) => {
+        if (this.sock !== sock || generation !== this.generation) return;
         const { connection, lastDisconnect, qr } = update;
 
         // 1. QR Code diterbitkan oleh WhatsApp Server
@@ -160,6 +186,7 @@ class WhatsAppSessionService {
               color: { dark: '#000000', light: '#FFFFFF' },
             });
 
+            if (this.sock !== sock || generation !== this.generation) return;
             this.currentQrDataUrl = qrDataUrl;
             this.currentStatus = 'SCAN_QR';
             this.reconnectAttempts = 0;
@@ -188,9 +215,10 @@ class WhatsAppSessionService {
 
         // 2. Koneksi Berhasil (Ponsel berhasil scan QR / sesi terotentikasi)
         if (connection === 'open') {
+          this.clearReconnectTimer();
+          this.sessionError = null;
           this.currentStatus = 'CONNECTED';
           this.currentQrDataUrl = null;
-          this.isConnecting = false;
           this.reconnectAttempts = 0;
 
           this.rejectAllQrWaiters('WhatsApp berhasil terhubung.');
@@ -235,9 +263,9 @@ class WhatsAppSessionService {
 
         // 3. Koneksi Terputus
         if (connection === 'close') {
-          this.isConnecting = false;
           const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
           const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+          const isReplaced = statusCode === DisconnectReason.connectionReplaced;
 
           console.warn(`⚠️ [WHATSAPP NATIVE] Koneksi terputus. Kode: ${statusCode}. LoggedOut: ${isLoggedOut}`);
 
@@ -256,14 +284,26 @@ class WhatsAppSessionService {
             await this.disconnectSession();
           } else {
             this.currentStatus = 'DISCONNECTED';
+            this.currentQrDataUrl = null;
+            this.connectedNumber = null;
+            this.deviceName = null;
+            this.syncedAt = null;
+            if (isReplaced) {
+              this.clearReconnectTimer();
+              this.sessionError = 'Koneksi WhatsApp digantikan (kode 440). Hentikan proses atau server lain yang memakai sesi ini, lalu hubungkan kembali dari admin.';
+              this.rejectAllQrWaiters(this.sessionError);
+              console.error(`🚨 [WHATSAPP NATIVE] ${this.sessionError}`);
+            }
             emitAdminEvent('admin:whatsapp_session', {
               status: 'DISCONNECTED',
               qrCodeUrl: null,
               connectedNumber: null,
               deviceName: null,
               syncedAt: null,
+              error: this.sessionError,
             });
 
+            if (isReplaced) return;
             if (this.qrWaiters.length > 0) {
               this.reconnectAttempts++;
               if (this.reconnectAttempts > MAX_QR_RETRIES) {
@@ -273,7 +313,9 @@ class WhatsAppSessionService {
               }
 
               console.log(`🔄 [WHATSAPP NATIVE] Reconnecting untuk mendapatkan QR (${this.qrWaiters.length} waiter, percobaan ${this.reconnectAttempts}/${MAX_QR_RETRIES})...`);
-              setTimeout(() => {
+              this.clearReconnectTimer();
+              this.reconnectTimer = setTimeout(() => {
+                this.reconnectTimer = null;
                 if (this.qrWaiters.length > 0) {
                   this.initSocket().catch((err) => {
                     this.rejectAllQrWaiters(`Gagal terhubung ke WhatsApp: ${err.message}`);
@@ -281,9 +323,11 @@ class WhatsAppSessionService {
                 }
               }, RECONNECT_DELAY_MS);
             } else if (this.hasStoredCredentials()) {
-              setTimeout(() => {
+              this.clearReconnectTimer();
+              this.reconnectTimer = setTimeout(() => {
+                this.reconnectTimer = null;
                 if (this.currentStatus !== 'CONNECTED' && this.hasStoredCredentials()) {
-                  this.initSocket().catch(() => {});
+                  this.initSocket().catch((err) => console.warn('⚠️ Gagal menghubungkan kembali WhatsApp:', err.message));
                 }
               }, AUTO_RECONNECT_DELAY_MS);
             }
@@ -293,9 +337,10 @@ class WhatsAppSessionService {
 
       return sock;
     } catch (err: any) {
-      this.isConnecting = false;
-      this.sock = null;
-      this.rejectAllQrWaiters(`Gagal inisialisasi socket: ${err.message}`);
+      if (generation === this.generation) {
+        this.sock = null;
+        this.rejectAllQrWaiters(`Gagal inisialisasi socket: ${err.message}`);
+      }
       throw err;
     }
   }
@@ -304,28 +349,13 @@ class WhatsAppSessionService {
    * Mengambil status sesi WhatsApp Web saat ini
    */
   async getSession(): Promise<WhatsAppSessionState> {
-    const settings = await prisma.appSetting.findMany({
-      where: {
-        key: {
-          in: ['wa_session_status', 'wa_session_number', 'wa_session_device', 'wa_session_synced_at'],
-        },
-      },
-    });
-
-    const map: Record<string, string> = {};
-    settings.forEach((s) => { map[s.key] = s.value; });
-
-    const status =
-      this.currentStatus !== 'DISCONNECTED'
-        ? this.currentStatus
-        : ((map.wa_session_status as WhatsAppSessionState['status']) || 'DISCONNECTED');
-
     return {
-      status,
-      qrCodeUrl: status === 'SCAN_QR' ? this.currentQrDataUrl : null,
-      connectedNumber: this.connectedNumber || map.wa_session_number || null,
-      deviceName: this.deviceName || map.wa_session_device || null,
-      syncedAt: this.syncedAt || map.wa_session_synced_at || null,
+      status: this.currentStatus,
+      qrCodeUrl: this.currentStatus === 'SCAN_QR' ? this.currentQrDataUrl : null,
+      connectedNumber: this.connectedNumber,
+      deviceName: this.deviceName,
+      syncedAt: this.syncedAt,
+      error: this.sessionError,
     };
   }
 
@@ -333,6 +363,7 @@ class WhatsAppSessionService {
    * Menghasilkan / Mengambil QR Code Resmi dari WhatsApp Web Server langsung
    */
   async generateQrCode(): Promise<WhatsAppSessionState> {
+    if (this.isDisconnecting) throw new Error('Sesi WhatsApp sedang diputuskan.');
     if (this.currentStatus === 'CONNECTED' && this.sock) {
       return this.getSession();
     }
@@ -348,20 +379,10 @@ class WhatsAppSessionService {
     }
 
     this.reconnectAttempts = 0;
-    this.cleanUpExistingSocket();
-    this.currentQrDataUrl = null;
+    this.sessionError = null;
 
     const qrPromise = new Promise<string>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.qrWaiters = this.qrWaiters.filter((w) => w.resolve !== resolve);
-        reject(
-          new Error(
-            'Waktu tunggu QR habis (60 detik). Pastikan server memiliki akses internet ke web.whatsapp.com dan coba lagi.'
-          )
-        );
-      }, QR_TIMEOUT_MS);
-
-      this.qrWaiters.push({
+      const waiter: QrWaiter = {
         resolve: (url: string) => {
           clearTimeout(timeout);
           resolve(url);
@@ -370,7 +391,17 @@ class WhatsAppSessionService {
           clearTimeout(timeout);
           reject(err);
         },
-      });
+      };
+      const timeout = setTimeout(() => {
+        this.qrWaiters = this.qrWaiters.filter((w) => w !== waiter);
+        reject(
+          new Error(
+            'Waktu tunggu QR habis (60 detik). Pastikan server memiliki akses internet ke web.whatsapp.com dan coba lagi.'
+          )
+        );
+      }, QR_TIMEOUT_MS);
+
+      this.qrWaiters.push(waiter);
     });
 
     this.initSocket().catch((err) => {
@@ -392,6 +423,7 @@ class WhatsAppSessionService {
    * Mengirim pesan teks langsung ke nomor tujuan via Baileys
    */
   async sendMessage(phoneNumber: string, message: string): Promise<boolean> {
+    if (this.sessionError) throw new Error(this.sessionError);
     if (!this.sock || this.currentStatus !== 'CONNECTED') {
       if (this.hasStoredCredentials()) {
         await this.initSocket();
@@ -422,6 +454,10 @@ class WhatsAppSessionService {
       return this.getSession();
     }
     this.isDisconnecting = true;
+    this.generation++;
+    this.initPromise = null;
+    this.clearReconnectTimer();
+    this.rejectAllQrWaiters('Sesi WhatsApp diputuskan.');
 
     try {
       if (this.sock) {
@@ -440,8 +476,8 @@ class WhatsAppSessionService {
     this.connectedNumber = null;
     this.deviceName = null;
     this.syncedAt = null;
-    this.isConnecting = false;
     this.reconnectAttempts = 0;
+    this.sessionError = null;
     emitAdminEvent('admin:whatsapp_session', {
       status: 'DISCONNECTED',
       qrCodeUrl: null,

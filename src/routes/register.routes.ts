@@ -1,11 +1,20 @@
 import { Router } from 'express';
-import { registerEvent } from '../controllers/register.controller';
-import { validate, registerPayloadSchema } from '../middlewares/validate';
+import { checkParticipantNiks, registerEvent } from '../controllers/register.controller';
+import { validate, checkParticipantNiksSchema, registerPayloadSchema } from '../middlewares/validate';
 import { botDetectionMiddleware } from '../middlewares/botDetection';
-import { warTicketLimiter } from '../middlewares/rateLimiter';
+import { participantNikCheckLimiter, warTicketLimiter } from '../middlewares/rateLimiter';
 import { sanitizeInput } from '../middlewares/sanitize';
 
 const router = Router();
+
+router.post(
+  '/check-nik',
+  participantNikCheckLimiter,
+  botDetectionMiddleware,
+  sanitizeInput,
+  validate(checkParticipantNiksSchema),
+  checkParticipantNiks
+);
 
 /**
  * POST /api/register

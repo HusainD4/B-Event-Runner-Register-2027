@@ -36,6 +36,17 @@ export const warTicketLimiter = rateLimit({
   },
 });
 
+export const participantNikCheckLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 'error',
+    message: 'Terlalu banyak pemeriksaan NIK. Silakan coba kembali setelah 1 menit.',
+  },
+});
+
 const ADMIN_LOGIN_RATE_COOKIE = 'tegal_admin_login_rate';
 const ADMIN_LOGIN_RATE_WINDOW_MS = 30 * 60 * 1000;
 const ADMIN_LOGIN_ACCOUNT_KEY_SECRET = randomBytes(32);
