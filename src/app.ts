@@ -117,7 +117,12 @@ import { env } from './config/env.js';
 
 // Inisialisasi Aplikasi Express
 const app = express();
-if (env.TRUST_PROXY === 'loopback') app.set('trust proxy', 'loopback');
+
+// ==============================================================
+// TRUST PROXY CONFIGURATION (Diletakkan paling atas setelah inisialisasi app)
+// ==============================================================
+// Mengatasi error express-rate-limit karena menggunakan Reverse Proxy (Nginx/PM2)
+app.set('trust proxy', 1);
 
 const getChangedTopics = (path: string, body: Record<string, unknown> = {}): string[] => {
   path = path.replace(/^\/api(?=\/|$)/, '');
