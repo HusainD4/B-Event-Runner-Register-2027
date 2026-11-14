@@ -200,10 +200,22 @@ export const disconnectWhatsAppSession = async (req: AuthenticatedRequest, res: 
 export const getNotificationLogs = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const search = req.query.search ? String(req.query.search).trim() : '';
+    if (search.length > 200) return res.status(400).json({ status: 'error', message: 'Pencarian maksimal 200 karakter.' });
     const statusFilter = req.query.status ? String(req.query.status).trim() : ''; // 'SENT', 'UNSENT'
 
-    // 1. Ambil semua order beserta peserta dan user
+    // Cari di database sebelum membatasi jumlah order yang ditampilkan.
     const orders = await prisma.order.findMany({
+      where: search ? {
+        OR: [
+          { id: { contains: search } },
+          { midtransOrderId: { contains: search } },
+          { user: { fullName: { contains: search } } },
+          { user: { phoneNumber: { contains: search } } },
+          { user: { email: { contains: search } } },
+          { participants: { some: { fullNameKtp: { contains: search } } } },
+          { participants: { some: { bibNumber: { contains: search } } } },
+        ],
+      } : {},
       include: {
         user: true,
         participants: {
@@ -218,6 +230,7 @@ export const getNotificationLogs = async (req: AuthenticatedRequest, res: Respon
     // 2. Ambil seluruh log pengiriman notifikasi
     const dispatchLogs = await prisma.log.findMany({
       where: {
+        entityId: { in: orders.map(order => order.id) },
         action: {
           in: ['NOTIFICATION_DISPATCH', 'NOTIFICATION_PENDING_MANUAL'],
         },
@@ -272,19 +285,6 @@ export const getNotificationLogs = async (req: AuthenticatedRequest, res: Respon
         pdfDeliveries: ord.pdfDeliveries,
       };
     });
-
-    // Filter pencarian
-    if (search) {
-      const q = search.toLowerCase();
-      items = items.filter(
-        (it) =>
-          it.customerName.toLowerCase().includes(q) ||
-          it.customerPhone.includes(q) ||
-          it.customerEmail.toLowerCase().includes(q) ||
-          it.midtransOrderId.toLowerCase().includes(q) ||
-          it.bibNumbers.toLowerCase().includes(q)
-      );
-    }
 
     if (statusFilter === 'SENT') {
       items = items.filter((it) => it.deliveryStatus === 'SENT');

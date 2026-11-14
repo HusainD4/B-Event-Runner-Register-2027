@@ -108,10 +108,11 @@ export const clearParticipantData = async (req: AuthenticatedRequest, res: Respo
 export const getAdminParticipants = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
 
     const search = req.query.search ? String(req.query.search).trim() : undefined;
+    if (search && search.length > 200) return res.status(400).json({ status: 'error', message: 'Pencarian maksimal 200 karakter.' });
     const eventId = req.query.eventId ? String(req.query.eventId) : undefined;
     const gender = req.query.gender as 'MALE' | 'FEMALE' | undefined;
 
@@ -119,21 +120,42 @@ export const getAdminParticipants = async (req: AuthenticatedRequest, res: Respo
     if (eventId) whereClause.eventId = eventId;
     if (gender && (gender === 'MALE' || gender === 'FEMALE')) whereClause.gender = gender;
 
+    const tab = String(req.query.tab || 'ALL');
+    if (!['ALL', 'SETTLED', 'PENDING', 'CANCELLED', 'RACEPACK_DONE', 'RACEPACK_PENDING'].includes(tab)) {
+      return res.status(400).json({ status: 'error', message: 'Filter status peserta tidak valid.' });
+    }
+    const category = String(req.query.category || '');
+    if (category && !['5K', '10K'].includes(category)) {
+      return res.status(400).json({ status: 'error', message: 'Filter kategori tidak valid.' });
+    }
+    if (category) whereClause.event = { category: { contains: category } };
     if (search) {
       whereClause.OR = [
-        { fullNameKtp: { contains: search } },
-        { bibName: { contains: search } },
-        { nik: { contains: search } },
-        { bibNumber: { contains: search } },
-        { emergencyContactName: { contains: search } },
-        { communityName: { contains: search } },
+        { fullNameKtp: { contains: search } }, { bibName: { contains: search } },
+        { bibNumber: { contains: search } }, { nik: { contains: search } },
+        { emergencyContactPhone: { contains: search } }, { order: { midtransOrderId: { contains: search } } },
       ];
     }
-
-    const [total, participants, checkinSetting] = await Promise.all([
-      prisma.participant.count({ where: whereClause }),
+    const checkinSetting = await prisma.appSetting.findUnique({ where: { key: 'racepack_checkins' } });
+    const checkinsMap: Record<string, any> = checkinSetting?.value ? JSON.parse(checkinSetting.value) : {};
+    if (!checkinsMap || typeof checkinsMap !== 'object' || Array.isArray(checkinsMap)) {
+      throw new Error('Data check-in racepack tidak valid.');
+    }
+    const checkedIds = Object.keys(checkinsMap).filter(id => checkinsMap[id]?.checkedIn === true);
+    const conditions: Record<string, any> = {
+      ALL: {},
+      SETTLED: { order: { status: { in: ['SETTLEMENT', 'CAPTURE'] } } },
+      PENDING: { order: { status: 'PENDING' } },
+      CANCELLED: { order: { status: { in: ['CANCEL', 'EXPIRE', 'DENY', 'REFUND'] } } },
+      RACEPACK_DONE: { id: { in: checkedIds } },
+      RACEPACK_PENDING: { id: { notIn: checkedIds } },
+    };
+    const filteredWhere = { AND: [whereClause, conditions[tab]] };
+    const tabs = Object.keys(conditions);
+    const [counts, participants] = await Promise.all([
+      Promise.all(tabs.map(key => prisma.participant.count({ where: { AND: [whereClause, conditions[key]] } }))),
       prisma.participant.findMany({
-        where: whereClause,
+        where: filteredWhere,
         include: {
           event: { select: { id: true, ticketName: true, category: true } },
           jersey: { select: { id: true, name: true, type: true } },
@@ -146,21 +168,13 @@ export const getAdminParticipants = async (req: AuthenticatedRequest, res: Respo
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take: limit,
       }),
-      prisma.appSetting.findUnique({ where: { key: 'racepack_checkins' } }).catch(() => null),
     ]);
-
-    let checkinsMap: Record<string, any> = {};
-    if (checkinSetting && checkinSetting.value) {
-      try {
-        checkinsMap = JSON.parse(checkinSetting.value);
-      } catch {
-        checkinsMap = {};
-      }
-    }
+    const tabCounts = Object.fromEntries(tabs.map((key, index) => [key, counts[index]]));
+    const total = tabCounts[tab];
 
     const enrichedParticipants = participants.map((p) => {
       const checkin = checkinsMap[p.id] || null;
@@ -183,6 +197,7 @@ export const getAdminParticipants = async (req: AuthenticatedRequest, res: Respo
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+        tabCounts,
       },
     });
   } catch (error) {

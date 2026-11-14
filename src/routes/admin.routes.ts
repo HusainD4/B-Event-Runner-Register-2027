@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 // Middlewares
 import { verifyAuthToken, verifyAdminRole, requirePermission, requireSuperAdmin } from '../middlewares/auth';
-import { adminAuthLimiter, backupExportLimiter } from '../middlewares/rateLimiter';
+import { adminAuthLimiter, backupExportLimiter, participantExportLimiter } from '../middlewares/rateLimiter';
 
 // Controllers
 import {
@@ -28,6 +28,7 @@ import {
 } from '../controllers/admin.rbac.controller';
 import { forceLogoutAdmin, getRoleMonitoring } from '../controllers/admin.monitoring.controller';
 import { downloadCsvBackup, downloadSqlBackup, getBackupOverview } from '../controllers/admin.backup.controller';
+import { exportParticipantsCsv } from '../controllers/admin.participant-export.controller';
 
 import {
   getPublicCountdownSettings,
@@ -220,6 +221,7 @@ router.post('/generate-bib', requirePermission('bib:manage'), generateBibNumbers
 // ==============================================================
 router.get('/participants', requirePermission('participants:read'), getAdminParticipants);
 router.get('/participants/all', requirePermission('participants:read'), getAllParticipants); // kompatibilitas
+router.post('/participants/export-csv', requirePermission('participants:read'), requirePermission('orders:read'), participantExportLimiter, exportParticipantsCsv);
 router.get('/participants/:id', requirePermission('participants:read'), getParticipantById);
 router.post('/participants', requirePermission('participants:create'), createManualParticipant);
 router.put('/participants/:id', requirePermission('participants:update'), updateParticipant);

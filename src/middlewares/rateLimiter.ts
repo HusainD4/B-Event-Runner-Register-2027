@@ -133,3 +133,14 @@ export const backupExportLimiter = rateLimit({
     message: 'Batas unduhan backup tercapai. Coba kembali setelah 15 menit.',
   },
 });
+
+export const participantExportLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 'error',
+    message: 'Batas unduhan peserta tercapai. Coba kembali setelah 15 menit.',
+  },
+});

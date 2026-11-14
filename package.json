@@ -11,7 +11,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:bootstrap-superadmin": "tsx prisma/bootstrap-superadmin.ts",
     "db:reset-admin": "tsx prisma/reset-and-seed-admin.ts",
-    "test": "npm --prefix ../frontend run build && npm run build && node --import tsx --test tests/backup.test.mjs tests/clear-participants.test.mjs tests/production-readiness.test.mjs tests/webhook-hardening.test.mjs tests/order-expiration.test.mjs tests/whatsapp-session.test.mjs tests/notification-templates.test.mjs tests/pdf-delivery.test.mjs tests/manual-pdf-dispatch.test.mjs tests/manual-pdf-ui.test.mjs tests/whatsapp-history.test.mjs tests/notification-tabs.test.mjs tests/cms-tabs.test.mjs tests/participants-refresh.test.mjs tests/email-tls.test.mjs tests/registration-contact.test.mjs"
+    "test": "npm --prefix ../frontend run build && npm run build && node --import tsx --test tests/backup.test.mjs tests/clear-participants.test.mjs tests/production-readiness.test.mjs tests/webhook-hardening.test.mjs tests/order-expiration.test.mjs tests/whatsapp-session.test.mjs tests/notification-templates.test.mjs tests/pdf-delivery.test.mjs tests/manual-pdf-dispatch.test.mjs tests/manual-pdf-ui.test.mjs tests/whatsapp-history.test.mjs tests/notification-tabs.test.mjs tests/cms-tabs.test.mjs tests/participants-refresh.test.mjs tests/participant-pagination.test.mjs tests/participant-export.test.mjs tests/email-tls.test.mjs tests/registration-contact.test.mjs"
   },
   "keywords": [
     "tegal-run",

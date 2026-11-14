@@ -168,6 +168,27 @@ test('notification logs expose current order status rather than historical log s
   assert.deepEqual(res.body.data.items.map(item => item.orderStatus), statuses);
 });
 
+test('notification search is applied before the limit and logs are restricted to matching orders', async () => {
+  let orderQuery;
+  let logQuery;
+  prisma.order.findMany = async args => {
+    orderQuery = args;
+    return [{ id: 'matching-order', status: 'PENDING', midtransOrderId: 'ref', totalAmount: 1000,
+      user: { fullName: 'Pembeli', phoneNumber: '0812', email: 'test@example.test' },
+      participants: [{ fullNameKtp: 'Peserta Cocok', event: { category: '5K', ticketName: 'Tiket' } }],
+      pdfDeliveries: [], createdAt: new Date() }];
+  };
+  prisma.log.findMany = async args => { logQuery = args; return []; };
+  prisma.appSetting.findUnique = async () => null;
+  const res = response();
+  await getNotificationLogs({ query: { search: 'Peserta Cocok' } }, res);
+  assert.equal(res.code, 200);
+  assert.equal(orderQuery.take, 150);
+  assert.ok(orderQuery.where.OR.some(condition => condition.participants?.some?.fullNameKtp?.contains === 'Peserta Cocok'));
+  assert.deepEqual(logQuery.where.entityId.in, ['matching-order']);
+  assert.equal(res.body.data.items.length, 1);
+});
+
 test('database errors roll back the queue and are reported', async () => {
   const state = setup();
   state.failLog = true;
