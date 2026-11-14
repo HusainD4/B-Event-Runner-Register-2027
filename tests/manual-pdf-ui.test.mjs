@@ -102,6 +102,29 @@ test('notification log PDF button uses configured channel, confirms and respects
     });
     assert.equal(await page.locator('.btn-dispatch-pdf').first().isDisabled(), true);
     assert.match(await page.locator('.notif-log-channel').first().textContent(), /Nonaktif/);
+    await page.evaluate(async () => {
+      window.testChannel = 'WA';
+      window.testItems = ['SETTLEMENT', 'CAPTURE', 'PENDING', 'CANCEL', 'EXPIRE', 'DENY', 'REFUND', 'UNEXPECTED', null]
+        .map((orderStatus, index) => ({
+          orderId: `order-${index}`, orderStatus, customerName: 'Pelari',
+          customerPhone: '-', customerEmail: '-', ticketCategory: '5K', bibNumbers: '-', pdfDeliveries: [],
+        }));
+      await window.logsModule.loadNotificationLogs();
+    });
+    const rows = page.locator('#notifLogsTableBody tr');
+    const expected = [
+      ['LUNAS', 'Pembayaran berhasil', true], ['LUNAS', 'Pembayaran berhasil', true],
+      ['PENDING', 'Menunggu pembayaran', false], ['GAGAL', 'Dibatalkan', false],
+      ['GAGAL', 'Kedaluwarsa', false], ['GAGAL', 'Ditolak', false],
+      ['REFUND', 'Dana dikembalikan', false], ['TIDAK DIKETAHUI', 'UNEXPECTED', false],
+      ['TIDAK DIKETAHUI', 'Status tidak tersedia', false],
+    ];
+    for (const [index, [label, detail, enabled]] of expected.entries()) {
+      const cell = rows.nth(index).locator('[data-label="Pembayaran"]');
+      assert.match(await cell.textContent(), new RegExp(label));
+      assert.match(await cell.textContent(), new RegExp(detail));
+      assert.equal(await rows.nth(index).locator('.btn-dispatch-pdf').isEnabled(), enabled);
+    }
   } finally {
     await browser.close();
   }

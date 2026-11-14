@@ -150,6 +150,24 @@ test('notification logs expose configured channel and its default', async () => 
   }
 });
 
+test('notification logs expose current order status rather than historical log status', async () => {
+  const statuses = ['SETTLEMENT', 'CAPTURE', 'PENDING', 'CANCEL', 'EXPIRE', 'DENY', 'REFUND'];
+  prisma.order.findMany = async () => statuses.map((status, index) => ({
+    id: `order-${index}`, status, midtransOrderId: `REF-${index}`, totalAmount: 1000,
+    user: { fullName: 'Peserta', phoneNumber: '0812', email: 'runner@example.test' },
+    participants: [], pdfDeliveries: [], createdAt: new Date(),
+  }));
+  prisma.log.findMany = async () => statuses.map((_, index) => ({
+    entityId: `order-${index}`, action: 'NOTIFICATION_DISPATCH',
+    metadata: { type: 'PENDING', whatsappSent: true }, createdAt: new Date(),
+  }));
+  prisma.appSetting.findUnique = async () => null;
+  const res = response();
+  await getNotificationLogs({ query: {} }, res);
+  assert.equal(res.code, 200);
+  assert.deepEqual(res.body.data.items.map(item => item.orderStatus), statuses);
+});
+
 test('database errors roll back the queue and are reported', async () => {
   const state = setup();
   state.failLog = true;
