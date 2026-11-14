@@ -236,13 +236,11 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
           phoneNumber: cleanPhone,
         },
       });
-    } else {
-      targetUser = await prisma.user.update({
-        where: { id: targetUser.id },
-        data: {
-          fullName: cleanName,
-          phoneNumber: cleanPhone,
-        },
+    } else if (normalizePhone(targetUser.phoneNumber) !== cleanPhone) {
+      return res.status(409).json({
+        status: 'error',
+        code: 'BOOKER_CONTACT_MISMATCH',
+        message: 'Data kontak pemesan tidak sesuai. Periksa kembali email dan nomor WhatsApp, atau hubungi panitia untuk bantuan.',
       });
     }
 

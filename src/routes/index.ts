@@ -15,6 +15,7 @@ import {
   cancelOrder,
   syncMidtransStatus,
   getOrderSnapToken,
+  verifyOrderExpiry,
 } from '../controllers/ticket.controller';
 
 const router = Router();
@@ -73,6 +74,7 @@ router.get('/tickets/search', searchTickets);
 router.get('/tickets/e-ticket/:orderId', getETicketData);
 router.post('/orders/:orderId/cancel', cancelOrder);
 router.post('/orders/:orderId/sync-midtrans', syncMidtransStatus);
+router.post('/orders/:orderId/verify-expiry', verifyOrderExpiry);
 router.all('/orders/:orderId/snap-token', getOrderSnapToken);
 
 // Manajemen Admin

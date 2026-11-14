@@ -12,6 +12,7 @@ export function createEmailTransport(cfg: Record<string, string>) {
     host: cfg.email_smtp_host,
     port,
     secure: port === 465,
+    requireTLS: port !== 465,
     connectionTimeout: 30_000,
     greetingTimeout: 30_000,
     socketTimeout: 60_000,

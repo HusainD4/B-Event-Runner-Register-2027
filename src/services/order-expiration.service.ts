@@ -1,12 +1,16 @@
 import prisma from '../config/database';
 import { coreApi } from '../config/midtrans';
 import { emitDataChanged, emitStockUpdate } from '../sockets/index';
+import { queueAutomaticPdfDeliveries } from './pdf-delivery.service';
+import { sendOrderNotification } from './notification.service';
 
 const EXPIRY_KEY_PREFIX = 'payment_expiry_';
 
-export async function expirePendingOrders(): Promise<void> {
+const activeExpirations = new Set<string>();
+
+export async function expirePendingOrders(orderId?: string): Promise<void> {
   const pendingOrders = await prisma.order.findMany({
-    where: { status: 'PENDING' },
+    where: { status: 'PENDING', ...(orderId ? { id: orderId } : {}) },
     select: {
       id: true,
       midtransOrderId: true,
@@ -26,30 +30,48 @@ export async function expirePendingOrders(): Promise<void> {
   const now = Date.now();
 
   for (const order of pendingOrders) {
+    if (activeExpirations.has(order.id)) continue;
     const savedExpiry = expiryByOrder.get(`${EXPIRY_KEY_PREFIX}${order.id}`);
     const expiresAt = savedExpiry
       ? new Date(savedExpiry).getTime()
       : order.createdAt.getTime() + legacyTimerMinutes * 60_000;
     if (!Number.isFinite(expiresAt) || expiresAt > now) continue;
 
+    activeExpirations.add(order.id);
+    try {
     const midtransOrderId = order.midtransOrderId;
     let remoteStatus = 'pending';
     if (midtransOrderId && !midtransOrderId.startsWith('OFFLINE-')) {
       try {
         const status = await coreApi.transaction.status(midtransOrderId);
         remoteStatus = String(status?.transaction_status || '').toLowerCase();
-        if (remoteStatus === 'settlement' || remoteStatus === 'capture') {
-          const updated = await prisma.order.updateMany({
-            where: { id: order.id, status: 'PENDING' },
-            data: { status: remoteStatus === 'capture' ? 'CAPTURE' : 'SETTLEMENT' },
+        if (remoteStatus === 'settlement' || (remoteStatus === 'capture' && status?.fraud_status === 'accept')) {
+          const updated = await prisma.$transaction(async tx => {
+            const result = await tx.order.updateMany({
+              where: { id: order.id, status: 'PENDING' },
+              data: { status: 'SETTLEMENT' },
+            });
+            if (result.count) {
+              await queueAutomaticPdfDeliveries(tx, order.id);
+              await tx.appSetting.deleteMany({ where: { key: `${EXPIRY_KEY_PREFIX}${order.id}` } });
+            }
+            return result;
           });
-          await prisma.appSetting.deleteMany({ where: { key: `${EXPIRY_KEY_PREFIX}${order.id}` } });
-          if (updated.count > 0) emitDataChanged(['dashboard', 'orders', 'participants', 'logs']);
+          if (updated.count > 0) {
+            emitDataChanged(['dashboard', 'orders', 'participants', 'logs']);
+            sendOrderNotification({ orderId: order.id, type: 'PAID' })
+              .catch(error => console.warn('[ORDER EXPIRY] Gagal mengirim notifikasi pembayaran:', error));
+          }
           continue;
         }
 
         if (remoteStatus === 'pending') {
-          await coreApi.transaction.cancel(midtransOrderId);
+          const cancelled = await coreApi.transaction.cancel(midtransOrderId);
+          remoteStatus = String(cancelled?.transaction_status || '').toLowerCase();
+          if (!['expire', 'cancel', 'deny'].includes(remoteStatus)) {
+            console.warn(`[ORDER EXPIRY] Pembatalan ${midtransOrderId} belum terkonfirmasi; pembatalan lokal ditunda.`);
+            continue;
+          }
         } else if (!['expire', 'cancel', 'deny'].includes(remoteStatus)) {
           console.warn(`[ORDER EXPIRY] Status Midtrans ${remoteStatus || 'unknown'} untuk ${midtransOrderId}; pembatalan lokal ditunda.`);
           continue;
@@ -106,6 +128,9 @@ export async function expirePendingOrders(): Promise<void> {
       }
     } catch (error) {
       console.error(`[ORDER EXPIRY] Gagal menyimpan pembatalan untuk order ${order.id}:`, error);
+    }
+    } finally {
+      activeExpirations.delete(order.id);
     }
   }
 }

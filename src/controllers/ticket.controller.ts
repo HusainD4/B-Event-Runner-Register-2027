@@ -9,6 +9,7 @@ import { getGlobalBibSettings, assignBibToParticipant } from '../services/bib.se
 import { generateSingleQrString, generateMasterQrString, decryptQrPayload } from '../services/qr-crypto.service';
 import { loadRacepackInstructions } from '../services/racepack-instructions.service';
 import { queueAutomaticPdfDeliveries } from '../services/pdf-delivery.service';
+import { expirePendingOrders } from '../services/order-expiration.service';
 
 /**
  * 1. PENCARIAN TIKET & STATUS OLEH PESERTA (PUBLIC)
@@ -172,9 +173,24 @@ export const searchTickets = async (req: Request, res: Response): Promise<any> =
       }
     }
 
+    const pending = orders.filter(order => order.status === 'PENDING');
+    const expirySettings = await prisma.appSetting.findMany({
+      where: { key: { in: pending.map(order => `payment_expiry_${order.id}`) } },
+      select: { key: true, value: true },
+    });
+    const expiryMap = new Map(expirySettings.map(setting => [setting.key, setting.value]));
+    const timerSetting = pending.length
+      ? await prisma.appSetting.findUnique({ where: { key: 'payment_timer_minutes' } })
+      : null;
+    const minutes = Math.max(5, Number.parseInt(timerSetting?.value || '30', 10) || 30);
     return res.status(200).json({
       status: 'success',
-      data: orders,
+      data: orders.map(order => ({
+        ...order,
+        paymentExpiresAt: order.status === 'PENDING'
+          ? expiryMap.get(`payment_expiry_${order.id}`) || new Date(order.createdAt.getTime() + minutes * 60_000).toISOString()
+          : null,
+      })),
     });
   } catch (error: any) {
     console.error('🚨 [SEARCH TICKETS ERROR]:', error);
@@ -199,11 +215,12 @@ async function syncOrderWithMidtrans(order: any, siteOrigin?: string): Promise<b
     const fraudStatus = statusRes?.fraud_status || 'accept';
 
     if (midtransStatus === 'settlement' || (midtransStatus === 'capture' && fraudStatus === 'accept')) {
-      await prisma.$transaction(async (tx) => {
-        await tx.order.update({
-          where: { id: order.id },
+      const changed = await prisma.$transaction(async (tx) => {
+        const update = await tx.order.updateMany({
+          where: { id: order.id, status: 'PENDING' },
           data: { status: 'SETTLEMENT' },
         });
+        if (!update.count) return false;
         await queueAutomaticPdfDeliveries(tx, order.id);
 
         for (const p of order.participants || []) {
@@ -228,8 +245,14 @@ async function syncOrderWithMidtrans(order: any, siteOrigin?: string): Promise<b
             metadata: { midtransStatus, fraudStatus },
           },
         }).catch(() => null);
+        return true;
       });
 
+      if (!changed) {
+        const current = await prisma.order.findUnique({ where: { id: order.id }, select: { status: true } });
+        if (current) order.status = current.status;
+        return false;
+      }
       order.status = 'SETTLEMENT';
 
       // Kirim notifikasi pembayaran lunas & E-Tiket ke WhatsApp & Email
@@ -240,27 +263,52 @@ async function syncOrderWithMidtrans(order: any, siteOrigin?: string): Promise<b
       }).catch((err) => console.warn('Notif paid sync warning:', err));
 
       return true;
-    } else if (['cancel', 'deny'].includes(midtransStatus)) {
-      await prisma.order.update({
-        where: { id: order.id },
-        data: { status: 'CANCEL' },
-      });
-      order.status = 'CANCEL';
-      return true;
-    } else if (midtransStatus === 'expire') {
-      await prisma.order.update({
-        where: { id: order.id },
-        data: { status: 'CANCEL' },
-      });
-      order.status = 'CANCEL';
+    } else if (['cancel', 'deny', 'expire'].includes(midtransStatus)) {
+      await closePendingOrder(order, midtransStatus === 'expire' ? 'EXPIRE' : 'CANCEL');
+      const current = await prisma.order.findUnique({ where: { id: order.id }, select: { status: true } });
+      if (current) order.status = current.status;
       return true;
     }
+
   } catch (err: any) {
     console.warn(`ℹ️ Midtrans status check for ${order.midtransOrderId}:`, err.message);
   }
 
   return false;
 }
+
+async function closePendingOrder(order: any, status: 'CANCEL' | 'EXPIRE'): Promise<void> {
+  const updates = await prisma.$transaction(async tx => {
+    const changed = await tx.order.updateMany({ where: { id: order.id, status: 'PENDING' }, data: { status } });
+    if (!changed.count) return [];
+    const counts = new Map<string, number>();
+    for (const participant of order.participants) {
+      counts.set(participant.eventId, (counts.get(participant.eventId) || 0) + 1);
+    }
+    const stock: Array<{ eventId: string; stock: number }> = [];
+    for (const [eventId, count] of counts) {
+      const event = await tx.event.update({ where: { id: eventId }, data: { stock: { increment: count } }, select: { stock: true } });
+      stock.push({ eventId, stock: event.stock });
+    }
+    await tx.appSetting.deleteMany({ where: { key: `payment_expiry_${order.id}` } });
+    return stock;
+  });
+  for (const update of updates) emitStockUpdate(update.eventId, update.stock);
+}
+
+export const verifyOrderExpiry = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const id = String(req.params.orderId);
+    const order = await prisma.order.findUnique({ where: { id }, select: { id: true } });
+    if (!order) return res.status(404).json({ status: 'error', message: 'Pesanan tidak ditemukan.' });
+    await expirePendingOrders(order.id);
+    const current = await prisma.order.findUnique({ where: { id }, select: { status: true } });
+    return res.json({ status: 'success', data: { status: current?.status } });
+  } catch (error) {
+    console.error('[ORDER EXPIRY] Gagal memeriksa pesanan:', error);
+    return res.status(500).json({ status: 'error', message: 'Gagal memverifikasi batas waktu pembayaran.' });
+  }
+};
 
 /**
  * 2. MENGAMBIL DATA E-TIKET RESMI (SETTLEMENT ONLY)
@@ -404,7 +452,7 @@ export const cancelOrder = async (req: Request, res: Response): Promise<any> => 
       });
     }
 
-    if (order.status === 'CANCEL') {
+    if (order.status !== 'PENDING') {
       return res.status(400).json({
         status: 'error',
         message: 'Pesanan ini sudah dibatalkan sebelumnya.',
@@ -415,12 +463,13 @@ export const cancelOrder = async (req: Request, res: Response): Promise<any> => 
     const participantCount = order.participants.length;
     const eventId = order.participants[0]?.eventId;
 
-    await prisma.$transaction(async (tx) => {
+    const cancelled = await prisma.$transaction(async (tx) => {
       // 1. Ubah status order menjadi CANCEL
-      await tx.order.update({
-        where: { id: order.id },
+      const update = await tx.order.updateMany({
+        where: { id: order.id, status: 'PENDING' },
         data: { status: 'CANCEL' },
       });
+      if (!update.count) return false;
 
       // 2. Kembalikan kuota event jika sebelumnya PENDING
       if (eventId && order.status === 'PENDING') {
@@ -444,8 +493,12 @@ export const cancelOrder = async (req: Request, res: Response): Promise<any> => 
           metadata: { reason, note, previousStatus: order.status },
         },
       });
+      return true;
     });
 
+    if (!cancelled) {
+      return res.status(409).json({ status: 'error', message: 'Status pesanan telah berubah. Silakan periksa kembali.' });
+    }
     // Kirim notifikasi pembatalan via WhatsApp/Email
     sendOrderNotification({
       orderId: order.id,
@@ -518,11 +571,12 @@ export const syncMidtransStatus = async (req: Request, res: Response): Promise<a
 
     // Jika terjadi perubahan status dari PENDING ke SETTLEMENT
     if (finalStatus === 'SETTLEMENT' && order.status !== 'SETTLEMENT') {
-      await prisma.$transaction(async (tx) => {
-        await tx.order.update({
-          where: { id: order.id },
+      const changed = await prisma.$transaction(async (tx) => {
+        const update = await tx.order.updateMany({
+          where: { id: order.id, status: 'PENDING' },
           data: { status: 'SETTLEMENT' },
         });
+        if (!update.count) return false;
         await queueAutomaticPdfDeliveries(tx, order.id);
 
         // Generate nomor BIB dada resmi
@@ -548,35 +602,23 @@ export const syncMidtransStatus = async (req: Request, res: Response): Promise<a
             metadata: { midtransStatus, fraudStatus },
           },
         });
+        return true;
       });
 
       // Kirim notifikasi pembayaran lunas & E-Tiket ke WhatsApp / Email
-      sendOrderNotification({
-        orderId: order.id,
-        type: 'PAID',
-        siteOrigin: req.get('origin'),
-      }).catch((err) => console.warn('Notif paid sync warning:', err));
+      if (changed) {
+        sendOrderNotification({
+          orderId: order.id,
+          type: 'PAID',
+          siteOrigin: req.get('origin'),
+        }).catch((err) => console.warn('Notif paid sync warning:', err));
+      }
     } else if (['CANCEL', 'EXPIRE'].includes(finalStatus) && order.status === 'PENDING') {
-      // Kembalikan kuota tiket jika transaksi dibatalkan / expired
-      const eventId = order.participants[0]?.eventId;
-      const count = order.participants.length;
-
-      await prisma.$transaction(async (tx) => {
-        if (eventId) {
-          const updatedEvent = await tx.event.update({
-            where: { id: eventId },
-            data: { stock: { increment: count } },
-          });
-          emitStockUpdate(eventId, updatedEvent.stock);
-        }
-
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: finalStatus },
-        });
-      });
+      await closePendingOrder(order, finalStatus);
     }
 
+    const current = await prisma.order.findUnique({ where: { id: order.id }, select: { status: true } });
+    finalStatus = current?.status || order.status;
     return res.status(200).json({
       status: 'success',
       message: `Status terkini: ${finalStatus}`,

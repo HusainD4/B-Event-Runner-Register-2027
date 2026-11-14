@@ -21,6 +21,19 @@ function imageSizes(operators) {
   return sizes;
 }
 
+function imagePositions(operators) {
+  let matrix = [1, 0, 0, 1, 0, 0];
+  const stack = [];
+  const images = [];
+  operators.fnArray.forEach((op, index) => {
+    if (op === OPS.save) stack.push(matrix);
+    if (op === OPS.restore) matrix = stack.pop();
+    if (op === OPS.transform) matrix = Util.transform(matrix, operators.argsArray[index]);
+    if (op === OPS.paintImageXObject) images.push({ width: Math.hypot(matrix[0], matrix[1]), x: matrix[4], y: matrix[5] });
+  });
+  return images;
+}
+
 const sandbox = await mkdtemp(path.join(tmpdir(), 'event-pdf-test-'));
 Object.assign(process.env, {
   NODE_ENV: 'test',
@@ -101,7 +114,7 @@ test('paid PDF jobs are durable per channel, rendered in a worker and sent as PD
     const singlePdf = await getDocument({ data: new Uint8Array(waPdf.pdf), useSystemFonts: true }).promise;
     try {
       assert.equal(singlePdf.numPages, 2);
-      const secondPage = await singlePdf.getPage(2);
+      const secondPage = await singlePdf.getPage(singlePdf.numPages);
       const text = (await secondPage.getTextContent()).items.map(item => item.str).join(' ');
       assert.match(text, /QR Pengambilan Racepack/);
       assert.match(text, /Pelari/);
@@ -184,7 +197,7 @@ test('PDF uses the e-ticket layout with all 10 participant tickets, master QR an
     event: { ticketName: 'Kategori 10K', category: '10K', eventDate: '2027-01-02T00:00:00Z', benefits: [{ name: 'Medali' }] },
     jersey: { name: 'Jersey' },
     selectedSize: 'M',
-    qrPayload: qr,
+    qrPayload: `${qr}-${index + 1}`,
   }));
   const worker = new Worker(new URL('../scripts/render-ticket-pdf.mjs', import.meta.url), {
     workerData: {
@@ -203,18 +216,31 @@ test('PDF uses the e-ticket layout with all 10 participant tickets, master QR an
   const pdf = await getDocument({ data: new Uint8Array(bytes), useSystemFonts: true }).promise;
   try {
     assert.equal(pdf.numPages, 11);
-    const qrPage = await pdf.getPage(2);
+    const qrPage = await pdf.getPage(pdf.numPages);
     const qrText = (await qrPage.getTextContent()).items.map(item => item.str).join(' ');
     assert.match(qrText, /QR Pengambilan Racepack/);
     assert.match(qrText, /QR MASTER/);
+    assert.match(qrText, /QR Peserta/);
+    for (const participant of participants) assert.ok(qrText.includes(participant.fullNameKtp));
     const qrOperators = await qrPage.getOperatorList();
     assert.ok(qrOperators.fnArray.includes(OPS.paintImageXObject));
-    assert.ok(imageSizes(qrOperators).some(([width, height]) => width >= 250 && height >= 250));
+    assert.ok(imageSizes(qrOperators).some(([width, height]) => width >= 190 && height >= 190));
+    assert.ok(qrOperators.fnArray.filter(op => op === OPS.paintImageXObject).length >= 11, 'master and every individual QR are on the final page');
+    const smallQrs = imagePositions(qrOperators).filter(image => image.width >= 70 && image.width <= 90);
+    assert.equal(smallQrs.length, 10);
+    const rows = new Map();
+    for (const image of smallQrs) {
+      const y = Math.round(image.y);
+      rows.set(y, (rows.get(y) || 0) + 1);
+    }
+    assert.deepEqual([...rows.values()], [5, 5]);
     let text = '';
     let imageCount = 0;
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const page = await pdf.getPage(pageNumber);
-      text += ' ' + (await page.getTextContent()).items.map(item => item.str).join(' ');
+      const pageText = (await page.getTextContent()).items.map(item => item.str).join(' ');
+      if (pageNumber < pdf.numPages) assert.doesNotMatch(pageText, /QR Pengambilan Racepack/);
+      text += ' ' + pageText;
       const operators = await page.getOperatorList();
       imageCount += operators.fnArray.filter(op => op === OPS.paintImageXObject).length;
     }
@@ -227,6 +253,41 @@ test('PDF uses the e-ticket layout with all 10 participant tickets, master QR an
     assert.ok(imageCount >= 11, 'individual and master QR images must be included');
   } finally {
     await pdf.destroy();
+  }
+});
+
+test('group PDFs place all participant QR codes on the final page for two and five runners', async () => {
+  for (const count of [2, 5]) {
+    const participants = Array.from({ length: count }, (_, index) => ({
+      fullNameKtp: `Peserta ${index + 1}`, nik: '1234567890123456', qrPayload: `RACE|PERSON-${index + 1}`,
+      event: { ticketName: '5K', category: '5K', benefits: [] },
+    }));
+    const worker = new Worker(new URL('../scripts/render-ticket-pdf.mjs', import.meta.url), {
+      workerData: {
+        order: { id: 'group', participants, masterQrPayload: 'RACE|MASTER', racepackInstructions: { title: 'Petunjuk', points: ['Bawa identitas'] } },
+        websiteSettings: { navbar_title: 'EVENT CONTOH' },
+      },
+    });
+    const bytes = await new Promise((resolve, reject) => {
+      worker.once('message', message => message.error ? reject(new Error(message.error)) : resolve(message.buffer));
+      worker.once('error', reject);
+    });
+    const pdf = await getDocument({ data: new Uint8Array(bytes), useSystemFonts: true }).promise;
+    try {
+      const last = await pdf.getPage(pdf.numPages);
+      const text = (await last.getTextContent()).items.map(item => item.str).join(' ');
+      assert.match(text, /QR Pengambilan Racepack/);
+      assert.match(text, /QR MASTER/);
+      for (const participant of participants) assert.ok(text.includes(participant.fullNameKtp));
+      const operators = await last.getOperatorList();
+      assert.ok(operators.fnArray.filter(op => op === OPS.paintImageXObject).length >= count + 1);
+      for (let i = 1; i < pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        assert.doesNotMatch((await page.getTextContent()).items.map(item => item.str).join(' '), /QR Pengambilan Racepack/);
+      }
+    } finally {
+      await pdf.destroy();
+    }
   }
 });
 
