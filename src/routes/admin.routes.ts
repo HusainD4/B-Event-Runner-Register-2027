@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 // Middlewares
-import { verifyAuthToken, verifyAdminRole, requirePermission, requireSuperAdmin } from '../middlewares/auth';
+import { verifyAuthToken, verifyAdminRole, requirePermission, requireSuperAdmin, requireBibSection, requireNotificationSection, requireEventSection } from '../middlewares/auth';
 import { adminAuthLimiter, backupExportLimiter, participantExportLimiter } from '../middlewares/rateLimiter';
 
 // Controllers
@@ -196,26 +196,26 @@ router.delete('/users-management/:id', requireSuperAdmin, deleteAdmin);
 // ==============================================================
 router.get('/events', requirePermission('events:read'), getAdminEvents);
 router.get('/events/:id', requirePermission('events:read'), getAdminEventById);
-router.post('/events', requirePermission('events:create'), createEvent);
-router.put('/events/:id', requirePermission('events:update'), updateEvent);
-router.delete('/events/:id', requirePermission('events:delete'), deleteEvent);
+router.post('/events', requirePermission('events:create'), requireEventSection('section:event-catalog'), createEvent);
+router.put('/events/:id', requirePermission('events:update'), requireEventSection('section:event-catalog'), updateEvent);
+router.delete('/events/:id', requirePermission('events:delete'), requireEventSection('section:event-catalog'), deleteEvent);
 
 // Benefits
-router.get('/events/:eventId/benefits', requirePermission('benefits:manage'), getEventBenefits);
-router.put('/events/:eventId/racepack-benefits', requirePermission('benefits:manage'), saveEventRacepackBenefits);
-router.post('/events/:eventId/benefits', requirePermission('benefits:manage'), addEventBenefit);
-router.put('/benefits/:id', requirePermission('benefits:manage'), updateEventBenefit);
-router.delete('/benefits/:id', requirePermission('benefits:manage'), deleteEventBenefit);
+router.get('/events/:eventId/benefits', requirePermission('benefits:manage'), requireEventSection('section:event-catalog'), getEventBenefits);
+router.put('/events/:eventId/racepack-benefits', requirePermission('benefits:manage'), requireEventSection('section:event-racepack'), saveEventRacepackBenefits);
+router.post('/events/:eventId/benefits', requirePermission('benefits:manage'), requireEventSection('section:event-catalog'), addEventBenefit);
+router.put('/benefits/:id', requirePermission('benefits:manage'), requireEventSection('section:event-catalog'), updateEventBenefit);
+router.delete('/benefits/:id', requirePermission('benefits:manage'), requireEventSection('section:event-catalog'), deleteEventBenefit);
 
 // Jerseys
-router.get('/jerseys', requirePermission('jerseys:manage'), getAllJerseys);
-router.post('/jerseys', requirePermission('jerseys:manage'), createJersey);
-router.put('/jerseys/:id', requirePermission('jerseys:manage'), updateJersey);
-router.delete('/jerseys/:id', requirePermission('jerseys:manage'), deleteJersey);
+router.get('/jerseys', requirePermission('jerseys:manage'), requireEventSection('section:event-catalog'), getAllJerseys);
+router.post('/jerseys', requirePermission('jerseys:manage'), requireEventSection('section:event-catalog'), createJersey);
+router.put('/jerseys/:id', requirePermission('jerseys:manage'), requireEventSection('section:event-catalog'), updateJersey);
+router.delete('/jerseys/:id', requirePermission('jerseys:manage'), requireEventSection('section:event-catalog'), deleteJersey);
 
 // BIB Configurations & Auto-Generation
-router.get('/events/:eventId/bib-config', requirePermission('bib:manage'), getBibConfig);
-router.post('/events/:eventId/bib-config', requirePermission('bib:manage'), saveBibConfig);
+router.get('/events/:eventId/bib-config', requirePermission('bib:manage'), requireEventSection('section:event-catalog'), getBibConfig);
+router.post('/events/:eventId/bib-config', requirePermission('bib:manage'), requireEventSection('section:event-catalog'), saveBibConfig);
 router.post('/generate-bib', requirePermission('bib:manage'), generateBibNumbers);
 
 // ==============================================================
@@ -264,7 +264,7 @@ router.get('/logs', requirePermission('logs:read'), getAuditLogs);
 // ==============================================================
 router.get('/notifications/settings', requirePermission('notifications:manage'), getNotificationSettings);
 router.put('/notifications/settings', requirePermission('notifications:manage'), updateNotificationSettings);
-router.post('/notifications/test', requirePermission('notifications:manage'), sendTestNotification);
+router.post('/notifications/test', requirePermission('notifications:manage'), requireNotificationSection('section:notification-test'), sendTestNotification);
 
 // WhatsApp Web Session Endpoints
 router.get('/notifications/whatsapp/session', requirePermission('whatsapp:session'), getWhatsAppSessionStatus);
@@ -295,17 +295,17 @@ router.get('/racepack/stats', requirePermission('participants:read'), getRacepac
 // ==============================================================
 // 13. PENGATURAN BIB, QR CODE & PETUNJUK RACEPACK
 // ==============================================================
-router.get('/bib/settings', requirePermission('bib:manage'), getAdminBibSettings);
-router.put('/bib/settings', requirePermission('bib:manage'), saveAdminBibSettings);
-router.post('/bib/bulk-generate', requirePermission('bib:manage'), triggerBulkGenerateBib);
+router.get('/bib/settings', requireBibSection('section:bib-generation'), getAdminBibSettings);
+router.put('/bib/settings', requireBibSection('section:bib-generation'), saveAdminBibSettings);
+router.post('/bib/bulk-generate', requireBibSection('section:bib-generation'), triggerBulkGenerateBib);
 
-router.get('/settings/qr', requirePermission('bib:manage'), getAdminQrSettings);
-router.put('/settings/qr', requirePermission('bib:manage'), saveAdminQrSettings);
+router.get('/settings/qr', requireBibSection('section:bib-qr'), getAdminQrSettings);
+router.put('/settings/qr', requireBibSection('section:bib-qr'), saveAdminQrSettings);
 
-router.get('/settings/racepack-instructions', requirePermission('bib:manage'), getRacepackInstructions);
-router.put('/settings/racepack-instructions', requirePermission('bib:manage'), saveRacepackInstructions);
+router.get('/settings/racepack-instructions', requireBibSection('section:bib-instructions'), getRacepackInstructions);
+router.put('/settings/racepack-instructions', requireBibSection('section:bib-instructions'), saveRacepackInstructions);
 
-router.get('/settings/payment-fee', requirePermission('bib:manage'), getPaymentAndFeeSettings);
-router.put('/settings/payment-fee', requirePermission('bib:manage'), savePaymentAndFeeSettings);
+router.get('/settings/payment-fee', requireBibSection('section:bib-payment-fee'), getPaymentAndFeeSettings);
+router.put('/settings/payment-fee', requireBibSection('section:bib-payment-fee'), savePaymentAndFeeSettings);
 
 export default router;

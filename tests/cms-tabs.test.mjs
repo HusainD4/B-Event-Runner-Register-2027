@@ -25,7 +25,7 @@ test('CMS tabs retain drafts, preserve global save and expose invalid fields', a
   const files = [
     'admin/pages/cms.html', 'css/style.css', 'css/admin.css',
     'admin/js/pages/cms.js', 'admin/js/pages/color-palettes.js', 'admin/js/core/tabs.js',
-    'admin/js/core/utils.js', 'js/home-appearance.js', 'js/jersey-gallery.js',
+    'admin/js/core/utils.js', 'admin/js/core/state.js', 'js/home-appearance.js', 'js/jersey-gallery.js',
   ];
   const contents = Object.fromEntries(await Promise.all(files.map(async file => [
     `/${file}`, (await readFile(new URL(file, base), 'utf8')).replace(/^import ['"][^'"]+\.css['"];?\s*$/gm, ''),

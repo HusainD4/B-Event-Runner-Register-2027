@@ -4,6 +4,7 @@ import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import { getEventRegistrationStatus } from '../utils/event-timing';
 import { parseRacepackBenefitIds, racepackBenefitsKey } from '../services/racepack-benefits.service';
+import { canAccessEventSection } from '../utils/event-section-permissions';
 
 const jerseyBannerImagesSchema = z.array(z.string().url().refine(value => {
   try {
@@ -121,7 +122,8 @@ export const getAdminEvents = async (req: AuthenticatedRequest, res: Response): 
     const settingsByKey = new Map(racepackSettings.map(setting => [setting.key, setting.value]));
     const formatted = events.map((event) => ({
       ...event,
-      racepackBenefitIds: parseRacepackBenefitIds(settingsByKey.get(racepackBenefitsKey(event.id))),
+      ...(canAccessEventSection(req.admin, 'section:event-racepack')
+        ? { racepackBenefitIds: parseRacepackBenefitIds(settingsByKey.get(racepackBenefitsKey(event.id))) } : {}),
       ...getEventRegistrationStatus(event.eventDate, event.isClosed),
       price: Number(event.price),
       registeredCount: event._count?.participants || 0,

@@ -4,6 +4,9 @@ import { env } from '../config/env';
 import prisma from '../config/database';
 import { ADMIN_SESSION_COOKIE, adminSessionClearOptions, readCookie } from '../config/admin-session';
 import { isAllowedOrigin } from '../config/cors';
+import { canAccessBibSection } from '../utils/bib-section-permissions';
+import { canAccessNotificationSection } from '../utils/notification-section-permissions';
+import { canAccessEventSection } from '../utils/event-section-permissions';
 
 export interface AdminTokenPayload {
   adminId: string;
@@ -161,6 +164,28 @@ export const requirePermission = (...requiredPermissions: string[]) => {
       status: 'error',
       message: `Akses ditolak: Role '${roleName}' tidak memiliki izin '${requiredPermissions.join(' / ')}'.`,
     });
+  };
+
+};
+
+export const requireBibSection = (section: string) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): any => {
+    if (canAccessBibSection(req.admin, section)) return next();
+    return res.status(403).json({ status: 'error', message: 'Akses ke bagian pengaturan ini tidak diizinkan.' });
+  };
+};
+
+export const requireNotificationSection = (section: string) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): any => {
+    if (canAccessNotificationSection(req.admin, section)) return next();
+    return res.status(403).json({ status: 'error', message: 'Akses ke bagian notifikasi ini tidak diizinkan.' });
+  };
+};
+
+export const requireEventSection = (section: string) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): any => {
+    if (canAccessEventSection(req.admin, section)) return next();
+    return res.status(403).json({ status: 'error', message: 'Akses ke bagian event ini tidak diizinkan.' });
   };
 };
 

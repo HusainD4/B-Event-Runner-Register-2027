@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { getEventTimerPhase } from '../utils/event-timing';
 import { emitDataChanged } from '../sockets';
 import { env } from '../config/env';
+import { canAccessCountdownSection, countdownSectionsForUpdate } from '../utils/countdown-section-permissions';
+import { allowedCmsFields, CMS_SECTION_CONFIGURED, CMS_SECTIONS } from '../utils/cms-section-permissions';
 
 export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   // Website Identity & Hero
@@ -307,9 +309,18 @@ export const getWebsiteSettings = async (req: AuthenticatedRequest, res: Respons
       });
     }
 
+    if (req.admin.roleName !== 'SUPERADMIN' && permissions.includes(CMS_SECTION_CONFIGURED)) {
+      const allowed = new Set(allowedCmsFields(req.admin, true));
+      return res.status(200).json({
+        status: 'success',
+        data: Object.fromEntries(Object.entries(settingsMap).filter(([key]) => allowed.has(key))),
+        cmsAllowedFields: allowedCmsFields(req.admin),
+      });
+    }
+
     return res.status(200).json({
       status: 'success',
-      data: settingsMap
+      data: Object.fromEntries(PUBLIC_WEBSITE_SETTING_KEYS.map(key => [key, settingsMap[key] || '']))
     });
   } catch (error) {
     console.error('🚨 [GET WEBSITE SETTINGS ERROR]:', error);
@@ -345,6 +356,11 @@ export const updateAdminCountdownSettings = async (req: AuthenticatedRequest, re
         message: 'Validasi pengaturan gagal.',
         errors: parseResult.error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
       });
+    }
+
+    const requiredSections = countdownSectionsForUpdate(parseResult.data);
+    if (requiredSections.some(section => !canAccessCountdownSection(req.admin, section))) {
+      return res.status(403).json({ status: 'error', message: 'Akses ke bagian pengaturan ini tidak diizinkan.' });
     }
 
     const {
@@ -583,6 +599,19 @@ export const updateWebsiteSettings = async (req: AuthenticatedRequest, res: Resp
         return res.status(403).json({
           status: 'error',
           message: 'Akses rute hanya dapat mengubah pengaturan rute, bukan seluruh konten CMS.'
+        });
+      }
+    }
+    const cmsFields = new Set<string>(CMS_SECTIONS.flatMap(section => [...section.fields]));
+    if (Object.keys(payload).some(key => !cmsFields.has(key))) {
+      return res.status(403).json({ status: 'error', message: 'Pengaturan yang diminta bukan bagian dari CMS atau rute.' });
+    }
+    if (req.admin?.roleName !== 'SUPERADMIN' && permissions.includes(CMS_SECTION_CONFIGURED)) {
+      const allowed = new Set(allowedCmsFields(req.admin));
+      if (Object.keys(payload).some(key => !allowed.has(key))) {
+        return res.status(403).json({
+          status: 'error',
+          message: 'Anda tidak memiliki akses untuk mengubah salah satu bagian CMS yang diminta.',
         });
       }
     }
@@ -913,9 +942,13 @@ export const updateWebsiteSettings = async (req: AuthenticatedRequest, res: Resp
     const dbSettings = await prisma.appSetting.findMany();
     const settingsMap: Record<string, string> = { ...DEFAULT_WEBSITE_SETTINGS };
     dbSettings.forEach(item => { settingsMap[item.key] = item.value; });
-    const responseSettings = routeOnly
+    let responseSettings = routeOnly
       ? Object.fromEntries(routeKeys.map(key => [key, settingsMap[key] || '']))
-      : settingsMap;
+      : Object.fromEntries(PUBLIC_WEBSITE_SETTING_KEYS.map(key => [key, settingsMap[key] || '']));
+    if (!routeOnly && req.admin?.roleName !== 'SUPERADMIN' && permissions.includes(CMS_SECTION_CONFIGURED)) {
+      const allowed = new Set(allowedCmsFields(req.admin, true));
+      responseSettings = Object.fromEntries(Object.entries(responseSettings).filter(([key]) => allowed.has(key)));
+    }
 
     return res.status(200).json({
       status: 'success',

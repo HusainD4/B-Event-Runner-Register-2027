@@ -10,6 +10,7 @@ import {
 } from '../services/bib.service';
 import { getQrPrefix, saveQrPrefix } from '../services/qr-crypto.service';
 import { DEFAULT_INSTRUCTIONS, loadRacepackInstructions } from '../services/racepack-instructions.service';
+import { canAccessBibSection } from '../utils/bib-section-permissions';
 
 /**
  * 1. Ambil Pengaturan BIB Lengkap (Global + Daftar Event Config)
@@ -17,7 +18,7 @@ import { DEFAULT_INSTRUCTIONS, loadRacepackInstructions } from '../services/race
 export const getAdminBibSettings = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const globalSettings = await getGlobalBibSettings();
-    const qrPrefix = await getQrPrefix();
+    const qrPrefix = canAccessBibSection(req.admin, 'section:bib-qr') ? await getQrPrefix() : undefined;
 
     const events = await prisma.event.findMany({
       include: {

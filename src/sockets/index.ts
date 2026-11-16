@@ -5,6 +5,7 @@ import { corsConfig } from '../config/cors';
 import { env } from '../config/env';
 import prisma from '../config/database';
 import { ADMIN_SESSION_COOKIE, readCookie } from '../config/admin-session';
+import { canAccessNotificationSection } from '../utils/notification-section-permissions';
 
 let io: Server | null = null;
 
@@ -41,6 +42,7 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
       socket.data.adminName = admin.fullName;
       socket.data.roleId = admin.role.id;
       socket.data.roleName = admin.role.name;
+      socket.data.tokenVersion = admin.tokenVersion;
       return next();
     } catch {
       return next(new Error('Sesi admin tidak valid.'));
@@ -91,8 +93,40 @@ export const emitDataChanged = (topics: string[]) => {
 };
 
 export const emitAdminEvent = (eventName: string, payload: unknown) => {
+  if (eventName === 'admin:whatsapp_session') {
+    void emitWhatsAppSessionEvent(eventName, payload).catch(error => {
+      console.error('Gagal mengirim status sesi WhatsApp ke admin yang berwenang:', error);
+    });
+    return;
+  }
   io?.to('admin').emit(eventName, payload);
 };
+
+async function emitWhatsAppSessionEvent(eventName: string, payload: unknown): Promise<void> {
+  if (!io) return;
+  const sockets = await io.in('admin').fetchSockets();
+  const ids = [...new Set(sockets.map(socket => socket.data.adminId).filter((id): id is string => typeof id === 'string'))];
+  if (!ids.length) return;
+  const admins = await prisma.admin.findMany({
+    where: { id: { in: ids }, isActive: true },
+    select: { id: true, username: true, email: true, tokenVersion: true, roleId: true, role: { select: { name: true, permissions: true } } },
+  });
+  const byId = new Map(admins.map(admin => [admin.id, admin]));
+  for (const socket of sockets) {
+    const admin = byId.get(socket.data.adminId);
+    if (!admin || admin.tokenVersion !== socket.data.tokenVersion) continue;
+    const permissions = Array.isArray(admin.role.permissions)
+      ? admin.role.permissions.filter((value): value is string => typeof value === 'string') : [];
+    const sessionPermission = permissions.includes('whatsapp:session') || permissions.includes('whatsapp:*');
+    const notificationPermission = canAccessNotificationSection({
+      adminId: admin.id, username: admin.username, email: admin.email, roleId: admin.roleId,
+      roleName: admin.role.name, permissions,
+    }, 'section:notification-gateway');
+    if (admin.role.name === 'SUPERADMIN' || sessionPermission || notificationPermission) {
+      socket.emit(eventName, payload);
+    }
+  }
+}
 
 export const emitAdminEventTo = (adminId: string, eventName: string, payload: unknown) => {
   if (!adminId) return;

@@ -3,6 +3,11 @@ import { z } from 'zod';
 import prisma from '../config/database';
 import { hashPassword } from '../utils/password';
 import type { AuthenticatedRequest } from '../middlewares/auth';
+import { BIB_SECTIONS, BIB_SECTION_CONFIGURED } from '../utils/bib-section-permissions';
+import { COUNTDOWN_SECTIONS, COUNTDOWN_SECTION_CONFIGURED } from '../utils/countdown-section-permissions';
+import { CMS_SECTIONS, CMS_SECTION_CONFIGURED } from '../utils/cms-section-permissions';
+import { NOTIFICATION_SECTIONS, NOTIFICATION_SECTION_CONFIGURED } from '../utils/notification-section-permissions';
+import { EVENT_SECTIONS, EVENT_SECTION_CONFIGURED } from '../utils/event-section-permissions';
 
 /**
  * Daftar seluruh izin (permissions) yang tersedia dalam sistem
@@ -400,14 +405,14 @@ export async function ensureDefaultRolesInDatabase() {
 const createRoleSchema = z.object({
   name: z.string().min(2, 'Nama role minimal 2 karakter').toUpperCase(),
   description: z.string().optional(),
-  permissions: z.array(z.string()).min(1, 'Role harus memiliki minimal 1 hak akses').max(100)
+  permissions: z.array(z.string()).min(1, 'Role harus memiliki minimal 1 hak akses').max(256)
     .refine(permissions => permissions.every(permission => isKnownRolePermission(permission)), 'Daftar hak akses berisi izin yang tidak dikenal.'),
 });
 
 const updateRoleSchema = z.object({
   name: z.string().min(2, 'Nama role minimal 2 karakter').toUpperCase().optional(),
   description: z.string().optional(),
-  permissions: z.array(z.string()).min(1, 'Role harus memiliki minimal 1 hak akses').max(100)
+  permissions: z.array(z.string()).min(1, 'Role harus memiliki minimal 1 hak akses').max(256)
     .refine(permissions => permissions.every(permission => isKnownRolePermission(permission)), 'Daftar hak akses berisi izin yang tidak dikenal.')
     .optional(),
 });
@@ -415,6 +420,16 @@ const updateRoleSchema = z.object({
 function isKnownRolePermission(permission: string): boolean {
   return permission === '*' ||
     permission === 'dashboard:configured' ||
+    permission === BIB_SECTION_CONFIGURED ||
+    BIB_SECTIONS.some(section => section.key === permission) ||
+    permission === COUNTDOWN_SECTION_CONFIGURED ||
+    COUNTDOWN_SECTIONS.some(section => section.key === permission) ||
+    permission === CMS_SECTION_CONFIGURED ||
+    CMS_SECTIONS.some(section => section.key === permission) ||
+    permission === NOTIFICATION_SECTION_CONFIGURED ||
+    NOTIFICATION_SECTIONS.some(section => section.key === permission) ||
+    permission === EVENT_SECTION_CONFIGURED ||
+    EVENT_SECTIONS.some(section => section.key === permission) ||
     AVAILABLE_PERMISSIONS.some(item => item.key === permission && item.key !== '*') ||
     SYSTEM_MODULES.some(module => module.key === permission) ||
     DASHBOARD_WIDGETS.some(widget => widget.key === permission);
@@ -449,6 +464,11 @@ export const getSystemPermissions = async (req: AuthenticatedRequest, res: Respo
       permissions: AVAILABLE_PERMISSIONS,
       modules: SYSTEM_MODULES,
       dashboardWidgets: DASHBOARD_WIDGETS,
+      bibSections: BIB_SECTIONS,
+      countdownSections: COUNTDOWN_SECTIONS,
+      cmsSections: CMS_SECTIONS,
+      notificationSections: NOTIFICATION_SECTIONS,
+      eventSections: EVENT_SECTIONS,
       defaultRoles: DEFAULT_SYSTEM_ROLES,
     },
   });
@@ -487,6 +507,11 @@ export const getAllRoles = async (req: AuthenticatedRequest, res: Response): Pro
       modules: SYSTEM_MODULES,
       permissions: AVAILABLE_PERMISSIONS,
       dashboardWidgets: DASHBOARD_WIDGETS,
+      bibSections: BIB_SECTIONS,
+      countdownSections: COUNTDOWN_SECTIONS,
+      cmsSections: CMS_SECTIONS,
+      notificationSections: NOTIFICATION_SECTIONS,
+      eventSections: EVENT_SECTIONS,
     });
   } catch (error) {
     console.error('🚨 [GET ROLES ERROR]:', error);

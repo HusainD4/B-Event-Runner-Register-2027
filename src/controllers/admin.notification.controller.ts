@@ -9,6 +9,7 @@ import { DEFAULT_EMAIL_TEMPLATES } from '../services/email-templates';
 import { queueManualPdfDelivery } from '../services/pdf-delivery.service';
 import { z } from 'zod';
 import { sendWithWhatsAppHistory } from '../services/whatsapp-history.service';
+import { allowedNotificationFields, canAccessNotificationSection, NOTIFICATION_SECTION_CONFIGURED } from '../utils/notification-section-permissions';
 
 /**
  * 1. MENGAMBIL SELURUH PENGATURAN NOTIFIKASI & OTOMASI WHATSAPP / EMAIL
@@ -64,14 +65,21 @@ export const getNotificationSettings = async (req: AuthenticatedRequest, res: Re
     });
 
     // Ambil juga status sesi WhatsApp Web
-    const waSession = await whatsappSessionService.getSession();
+    const configured = req.admin?.roleName !== 'SUPERADMIN' && req.admin?.permissions?.includes(NOTIFICATION_SECTION_CONFIGURED);
+    const allowed = new Set(allowedNotificationFields(req.admin));
+    const waSession = !configured || canAccessNotificationSection(req.admin, 'section:notification-gateway')
+      ? await whatsappSessionService.getSession() : undefined;
+    const visibleConfig = configured
+      ? Object.fromEntries(Object.entries(config).filter(([key]) => allowed.has(key)))
+      : config;
 
     return res.status(200).json({
       status: 'success',
       data: {
-        ...config,
-        email_template_defaults: DEFAULT_EMAIL_TEMPLATES,
-        wa_session: waSession,
+        ...visibleConfig,
+        ...(!configured || canAccessNotificationSection(req.admin, 'section:notification-email-template')
+          ? { email_template_defaults: DEFAULT_EMAIL_TEMPLATES } : {}),
+        ...(waSession ? { wa_session: waSession } : {}),
       },
     });
   } catch (error: any) {
@@ -89,6 +97,9 @@ export const getNotificationSettings = async (req: AuthenticatedRequest, res: Re
 export const updateNotificationSettings = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
   try {
     const payload = req.body?.settings || req.body || {};
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return res.status(400).json({ status: 'error', message: 'Payload pengaturan notifikasi tidak valid.' });
+    }
 
     const allowedKeys = [
       'notif_channel',
@@ -110,6 +121,12 @@ export const updateNotificationSettings = async (req: AuthenticatedRequest, res:
       'template_email_cancel',
     ];
 
+    if (req.admin?.roleName !== 'SUPERADMIN' && req.admin?.permissions?.includes(NOTIFICATION_SECTION_CONFIGURED)) {
+      const allowed = new Set(allowedNotificationFields(req.admin));
+      if (Object.keys(payload).some(key => !allowed.has(key))) {
+        return res.status(403).json({ status: 'error', message: 'Anda tidak memiliki akses untuk mengubah salah satu bagian notifikasi yang diminta.' });
+      }
+    }
     if (payload.pdf_delivery_channel !== undefined && !['DISABLED', 'WA', 'EMAIL', 'BOTH'].includes(payload.pdf_delivery_channel)) {
       return res.status(400).json({ status: 'error', message: 'Pilihan saluran PDF tidak valid.' });
     }
