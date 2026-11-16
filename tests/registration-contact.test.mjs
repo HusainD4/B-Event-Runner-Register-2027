@@ -18,7 +18,7 @@ Object.assign(process.env, {
 
 const { default: prisma } = await import('../src/config/database.ts');
 const { snap } = await import('../src/config/midtrans.ts');
-const { registerEvent } = await import('../src/controllers/register.controller.ts');
+const { registerEvent, checkParticipantNiks } = await import('../src/controllers/register.controller.ts');
 const { registerPayloadSchema } = await import('../src/middlewares/validate.ts');
 const { isValidRegistrationPhone, setupRegistrationPhone } = await import('../../frontend/js/registration-phone.js');
 
@@ -127,11 +127,11 @@ function response() {
   };
 }
 
-test('public registration preserves existing buyer contact and blocks mismatched phones', async () => {
+test('public registration reuses matching contact or creates a separate buyer without changing old orders', async () => {
   const event = { id: 'event-1', ticketName: '5K', category: '5K', price: 10000, eventDate: null, isClosed: false, jerseys: [] };
   const existing = { id: 'buyer-1', fullName: 'Pembeli Awal', email: 'buyer@example.test', phoneNumber: '+6281234567890' };
   const participant = { fullNameKtp: 'Peserta', nik: '1234567890123456', birthDate: '2000-01-01', emergencyContactPhone: '081234567890' };
-  let buyer = existing;
+  const buyers = [existing];
   let userUpdates = 0;
   let userCreates = 0;
   let ordersCreated = 0;
@@ -141,16 +141,19 @@ test('public registration preserves existing buyer contact and blocks mismatched
   prisma.appSetting.findMany = async () => [];
   prisma.appSetting.findUnique = async () => null;
   prisma.participant.findMany = async () => [];
-  prisma.user.findFirst = async () => buyer;
+  prisma.user.findMany = async ({ where }) => buyers.filter(user => user.email === where.email);
   prisma.user.update = async () => { userUpdates++; throw new Error('Public registration must not update a buyer'); };
-  prisma.user.create = async ({ data }) => { userCreates++; return { id: 'new-buyer', ...data }; };
+  prisma.user.create = async ({ data }) => { userCreates++; const user = { id: `new-buyer-${userCreates}`, ...data }; buyers.push(user); return user; };
   prisma.order.findUnique = async () => null;
   prisma.$transaction = async callback => callback({
     appSetting: { findMany: async () => [], create: async () => ({}) },
+    $executeRaw: async () => 1,
+    participant: { findMany: async () => [] },
+    user: { findMany: prisma.user.findMany, create: prisma.user.create },
     event: { findMany: async () => [event], updateMany: async () => ({ count: 1 }) },
     order: { create: async ({ data }) => {
       ordersCreated++;
-      return { id: 'order-1', midtransOrderId: data.midtransOrderId, user: buyer || { id: 'new-buyer', fullName: 'Pemesan Baru', email: 'new@example.test', phoneNumber: '+6281234567890' } };
+      return { id: 'order-1', midtransOrderId: data.midtransOrderId, user: buyers.find(user => user.id === data.userId) };
     } },
     log: { create: async () => ({}) },
   });
@@ -166,28 +169,80 @@ test('public registration preserves existing buyer contact and blocks mismatched
     return res;
   };
   try {
-    const rejected = await attempt('buyer@example.test', '081999999999');
-    assert.equal(rejected.code, 409);
-    assert.equal(rejected.body.code, 'BOOKER_CONTACT_MISMATCH');
+    const acceptedDifferentPhone = await attempt('buyer@example.test', '081999999999');
+    assert.equal(acceptedDifferentPhone.code, 201);
+    assert.equal(midtransCustomer.phone, '+6281999999999');
     assert.equal(userUpdates, 0);
-    assert.equal(ordersCreated, 0);
+    assert.equal(ordersCreated, 1);
     assert.equal(existing.phoneNumber, '+6281234567890');
 
     const accepted = await attempt('BUYER@example.test', '0812-3456-7890');
     assert.equal(accepted.code, 201);
     assert.equal(userUpdates, 0);
-    assert.equal(ordersCreated, 1);
+    assert.equal(ordersCreated, 2);
     assert.equal(midtransCustomer.first_name, 'Pembeli Awal');
     assert.equal(midtransCustomer.phone, '+6281234567890');
 
-    buyer = null;
+    const acceptedAgain = await attempt('buyer@example.test', '081999999999');
+    assert.equal(acceptedAgain.code, 201);
+    assert.equal(userCreates, 1);
     const newBuyer = await attempt('new@example.test', '081234567890', 'Pemesan Baru');
     assert.equal(newBuyer.code, 201);
-    assert.equal(userCreates, 1);
-    assert.equal(ordersCreated, 2);
+    assert.equal(userCreates, 2);
+    assert.equal(ordersCreated, 4);
   } finally {
     snap.createTransaction = originalSnap;
   }
+});
+
+test('NIK validation rejects duplicates across categories while permitting cancelled orders', async () => {
+  let existing = [{ nik: '1234567890123456', status: 'SETTLEMENT' }];
+  prisma.participant.findMany = async ({ where }) => existing
+    .filter(row => where.nik.in.includes(row.nik) && !where.order.status.notIn.includes(row.status))
+    .map(({ nik }) => ({ nik }));
+  const check = async participants => {
+    const res = response();
+    await checkParticipantNiks({ body: { participants } }, res);
+    assert.equal(res.code, 200);
+    return res.body.data.duplicateParticipants;
+  };
+  const nik = '1234567890123456';
+  assert.deepEqual(await check([{ eventId: 'other-category', nik }]), [1]);
+  existing[0].status = 'CANCEL';
+  assert.deepEqual(await check([{ eventId: 'other-category', nik }]), []);
+  existing[0].status = 'EXPIRE';
+  assert.deepEqual(await check([{ eventId: 'other-category', nik }]), []);
+  assert.deepEqual(await check([{ eventId: 'a', nik }, { eventId: 'b', nik }]), [2]);
+});
+
+test('checkout rechecks NIK under a transaction lock before reserving stock', async () => {
+  const event = { id: 'event-1', ticketName: '5K', category: '5K', price: 10000, eventDate: null, isClosed: false, jerseys: [] };
+  const participant = { nik: '1234567890123456' };
+  let stockUpdates = 0;
+  let locks = 0;
+  prisma.event.findUnique = async () => event;
+  prisma.event.findMany = async () => [event];
+  prisma.appSetting.findMany = async () => [];
+  prisma.appSetting.findUnique = async () => null;
+  prisma.participant.findMany = async () => [];
+  prisma.user.findMany = async () => [{ id: 'buyer-1', phoneNumber: '+6281234567890' }];
+  prisma.$transaction = async (callback, options) => {
+    assert.equal(options.isolationLevel, 'ReadCommitted');
+    return callback({
+      $executeRaw: async () => { locks++; },
+      participant: { findMany: async () => [{ nik: participant.nik }] },
+      event: { updateMany: async () => { stockUpdates++; return { count: 1 }; } },
+    });
+  };
+  const res = response();
+  await registerEvent({ body: {
+    eventId: event.id, participants: [participant], bookerEmail: 'buyer@example.test', bookerPhone: '+6281234567890',
+  } }, res);
+  assert.equal(locks, 1);
+  assert.equal(stockUpdates, 0);
+  assert.equal(res.code, 409);
+  assert.equal(res.body.code, 'DUPLICATE_NIK');
+  assert.deepEqual(res.body.duplicateParticipants, [1]);
 });
 
 test.after(async () => { await rm(sandbox, { recursive: true, force: true }); });

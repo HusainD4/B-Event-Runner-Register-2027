@@ -49,6 +49,11 @@ export type PdfDelivery = $Result.DefaultSelection<Prisma.$PdfDeliveryPayload>
  */
 export type Participant = $Result.DefaultSelection<Prisma.$ParticipantPayload>
 /**
+ * Model RegistrationNikLock
+ * 
+ */
+export type RegistrationNikLock = $Result.DefaultSelection<Prisma.$RegistrationNikLockPayload>
+/**
  * Model QrToken
  * 
  */
@@ -324,6 +329,16 @@ export class PrismaClient<
     * ```
     */
   get participant(): Prisma.ParticipantDelegate<ExtArgs>;
+
+  /**
+   * `prisma.registrationNikLock`: Exposes CRUD operations for the **RegistrationNikLock** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RegistrationNikLocks
+    * const registrationNikLocks = await prisma.registrationNikLock.findMany()
+    * ```
+    */
+  get registrationNikLock(): Prisma.RegistrationNikLockDelegate<ExtArgs>;
 
   /**
    * `prisma.qrToken`: Exposes CRUD operations for the **QrToken** model.
@@ -842,6 +857,7 @@ export namespace Prisma {
     Order: 'Order',
     PdfDelivery: 'PdfDelivery',
     Participant: 'Participant',
+    RegistrationNikLock: 'RegistrationNikLock',
     QrToken: 'QrToken',
     Log: 'Log',
     BibConfiguration: 'BibConfiguration',
@@ -864,7 +880,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "user" | "event" | "eventBenefit" | "jersey" | "order" | "pdfDelivery" | "participant" | "qrToken" | "log" | "bibConfiguration" | "role" | "admin" | "appSetting" | "routePoint"
+      modelProps: "user" | "event" | "eventBenefit" | "jersey" | "order" | "pdfDelivery" | "participant" | "registrationNikLock" | "qrToken" | "log" | "bibConfiguration" | "role" | "admin" | "appSetting" | "routePoint"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1327,6 +1343,72 @@ export namespace Prisma {
           count: {
             args: Prisma.ParticipantCountArgs<ExtArgs>
             result: $Utils.Optional<ParticipantCountAggregateOutputType> | number
+          }
+        }
+      }
+      RegistrationNikLock: {
+        payload: Prisma.$RegistrationNikLockPayload<ExtArgs>
+        fields: Prisma.RegistrationNikLockFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RegistrationNikLockFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RegistrationNikLockPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RegistrationNikLockFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RegistrationNikLockPayload>
+          }
+          findFirst: {
+            args: Prisma.RegistrationNikLockFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RegistrationNikLockPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RegistrationNikLockFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RegistrationNikLockPayload>
+          }
+          findMany: {
+            args: Prisma.RegistrationNikLockFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RegistrationNikLockPayload>[]
+          }
+          create: {
+            args: Prisma.RegistrationNikLockCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RegistrationNikLockPayload>
+          }
+          createMany: {
+            args: Prisma.RegistrationNikLockCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          delete: {
+            args: Prisma.RegistrationNikLockDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RegistrationNikLockPayload>
+          }
+          update: {
+            args: Prisma.RegistrationNikLockUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RegistrationNikLockPayload>
+          }
+          deleteMany: {
+            args: Prisma.RegistrationNikLockDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RegistrationNikLockUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.RegistrationNikLockUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RegistrationNikLockPayload>
+          }
+          aggregate: {
+            args: Prisma.RegistrationNikLockAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRegistrationNikLock>
+          }
+          groupBy: {
+            args: Prisma.RegistrationNikLockGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RegistrationNikLockGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RegistrationNikLockCountArgs<ExtArgs>
+            result: $Utils.Optional<RegistrationNikLockCountAggregateOutputType> | number
           }
         }
       }
@@ -9016,6 +9098,794 @@ export namespace Prisma {
 
 
   /**
+   * Model RegistrationNikLock
+   */
+
+  export type AggregateRegistrationNikLock = {
+    _count: RegistrationNikLockCountAggregateOutputType | null
+    _min: RegistrationNikLockMinAggregateOutputType | null
+    _max: RegistrationNikLockMaxAggregateOutputType | null
+  }
+
+  export type RegistrationNikLockMinAggregateOutputType = {
+    nikHash: string | null
+  }
+
+  export type RegistrationNikLockMaxAggregateOutputType = {
+    nikHash: string | null
+  }
+
+  export type RegistrationNikLockCountAggregateOutputType = {
+    nikHash: number
+    _all: number
+  }
+
+
+  export type RegistrationNikLockMinAggregateInputType = {
+    nikHash?: true
+  }
+
+  export type RegistrationNikLockMaxAggregateInputType = {
+    nikHash?: true
+  }
+
+  export type RegistrationNikLockCountAggregateInputType = {
+    nikHash?: true
+    _all?: true
+  }
+
+  export type RegistrationNikLockAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RegistrationNikLock to aggregate.
+     */
+    where?: RegistrationNikLockWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RegistrationNikLocks to fetch.
+     */
+    orderBy?: RegistrationNikLockOrderByWithRelationInput | RegistrationNikLockOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RegistrationNikLockWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RegistrationNikLocks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RegistrationNikLocks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned RegistrationNikLocks
+    **/
+    _count?: true | RegistrationNikLockCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RegistrationNikLockMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RegistrationNikLockMaxAggregateInputType
+  }
+
+  export type GetRegistrationNikLockAggregateType<T extends RegistrationNikLockAggregateArgs> = {
+        [P in keyof T & keyof AggregateRegistrationNikLock]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRegistrationNikLock[P]>
+      : GetScalarType<T[P], AggregateRegistrationNikLock[P]>
+  }
+
+
+
+
+  export type RegistrationNikLockGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RegistrationNikLockWhereInput
+    orderBy?: RegistrationNikLockOrderByWithAggregationInput | RegistrationNikLockOrderByWithAggregationInput[]
+    by: RegistrationNikLockScalarFieldEnum[] | RegistrationNikLockScalarFieldEnum
+    having?: RegistrationNikLockScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RegistrationNikLockCountAggregateInputType | true
+    _min?: RegistrationNikLockMinAggregateInputType
+    _max?: RegistrationNikLockMaxAggregateInputType
+  }
+
+  export type RegistrationNikLockGroupByOutputType = {
+    nikHash: string
+    _count: RegistrationNikLockCountAggregateOutputType | null
+    _min: RegistrationNikLockMinAggregateOutputType | null
+    _max: RegistrationNikLockMaxAggregateOutputType | null
+  }
+
+  type GetRegistrationNikLockGroupByPayload<T extends RegistrationNikLockGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RegistrationNikLockGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RegistrationNikLockGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RegistrationNikLockGroupByOutputType[P]>
+            : GetScalarType<T[P], RegistrationNikLockGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RegistrationNikLockSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    nikHash?: boolean
+  }, ExtArgs["result"]["registrationNikLock"]>
+
+
+  export type RegistrationNikLockSelectScalar = {
+    nikHash?: boolean
+  }
+
+
+  export type $RegistrationNikLockPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "RegistrationNikLock"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      nikHash: string
+    }, ExtArgs["result"]["registrationNikLock"]>
+    composites: {}
+  }
+
+  type RegistrationNikLockGetPayload<S extends boolean | null | undefined | RegistrationNikLockDefaultArgs> = $Result.GetResult<Prisma.$RegistrationNikLockPayload, S>
+
+  type RegistrationNikLockCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<RegistrationNikLockFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: RegistrationNikLockCountAggregateInputType | true
+    }
+
+  export interface RegistrationNikLockDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RegistrationNikLock'], meta: { name: 'RegistrationNikLock' } }
+    /**
+     * Find zero or one RegistrationNikLock that matches the filter.
+     * @param {RegistrationNikLockFindUniqueArgs} args - Arguments to find a RegistrationNikLock
+     * @example
+     * // Get one RegistrationNikLock
+     * const registrationNikLock = await prisma.registrationNikLock.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RegistrationNikLockFindUniqueArgs>(args: SelectSubset<T, RegistrationNikLockFindUniqueArgs<ExtArgs>>): Prisma__RegistrationNikLockClient<$Result.GetResult<Prisma.$RegistrationNikLockPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one RegistrationNikLock that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {RegistrationNikLockFindUniqueOrThrowArgs} args - Arguments to find a RegistrationNikLock
+     * @example
+     * // Get one RegistrationNikLock
+     * const registrationNikLock = await prisma.registrationNikLock.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RegistrationNikLockFindUniqueOrThrowArgs>(args: SelectSubset<T, RegistrationNikLockFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RegistrationNikLockClient<$Result.GetResult<Prisma.$RegistrationNikLockPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first RegistrationNikLock that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RegistrationNikLockFindFirstArgs} args - Arguments to find a RegistrationNikLock
+     * @example
+     * // Get one RegistrationNikLock
+     * const registrationNikLock = await prisma.registrationNikLock.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RegistrationNikLockFindFirstArgs>(args?: SelectSubset<T, RegistrationNikLockFindFirstArgs<ExtArgs>>): Prisma__RegistrationNikLockClient<$Result.GetResult<Prisma.$RegistrationNikLockPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first RegistrationNikLock that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RegistrationNikLockFindFirstOrThrowArgs} args - Arguments to find a RegistrationNikLock
+     * @example
+     * // Get one RegistrationNikLock
+     * const registrationNikLock = await prisma.registrationNikLock.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RegistrationNikLockFindFirstOrThrowArgs>(args?: SelectSubset<T, RegistrationNikLockFindFirstOrThrowArgs<ExtArgs>>): Prisma__RegistrationNikLockClient<$Result.GetResult<Prisma.$RegistrationNikLockPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more RegistrationNikLocks that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RegistrationNikLockFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all RegistrationNikLocks
+     * const registrationNikLocks = await prisma.registrationNikLock.findMany()
+     * 
+     * // Get first 10 RegistrationNikLocks
+     * const registrationNikLocks = await prisma.registrationNikLock.findMany({ take: 10 })
+     * 
+     * // Only select the `nikHash`
+     * const registrationNikLockWithNikHashOnly = await prisma.registrationNikLock.findMany({ select: { nikHash: true } })
+     * 
+     */
+    findMany<T extends RegistrationNikLockFindManyArgs>(args?: SelectSubset<T, RegistrationNikLockFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RegistrationNikLockPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a RegistrationNikLock.
+     * @param {RegistrationNikLockCreateArgs} args - Arguments to create a RegistrationNikLock.
+     * @example
+     * // Create one RegistrationNikLock
+     * const RegistrationNikLock = await prisma.registrationNikLock.create({
+     *   data: {
+     *     // ... data to create a RegistrationNikLock
+     *   }
+     * })
+     * 
+     */
+    create<T extends RegistrationNikLockCreateArgs>(args: SelectSubset<T, RegistrationNikLockCreateArgs<ExtArgs>>): Prisma__RegistrationNikLockClient<$Result.GetResult<Prisma.$RegistrationNikLockPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many RegistrationNikLocks.
+     * @param {RegistrationNikLockCreateManyArgs} args - Arguments to create many RegistrationNikLocks.
+     * @example
+     * // Create many RegistrationNikLocks
+     * const registrationNikLock = await prisma.registrationNikLock.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RegistrationNikLockCreateManyArgs>(args?: SelectSubset<T, RegistrationNikLockCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Delete a RegistrationNikLock.
+     * @param {RegistrationNikLockDeleteArgs} args - Arguments to delete one RegistrationNikLock.
+     * @example
+     * // Delete one RegistrationNikLock
+     * const RegistrationNikLock = await prisma.registrationNikLock.delete({
+     *   where: {
+     *     // ... filter to delete one RegistrationNikLock
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RegistrationNikLockDeleteArgs>(args: SelectSubset<T, RegistrationNikLockDeleteArgs<ExtArgs>>): Prisma__RegistrationNikLockClient<$Result.GetResult<Prisma.$RegistrationNikLockPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one RegistrationNikLock.
+     * @param {RegistrationNikLockUpdateArgs} args - Arguments to update one RegistrationNikLock.
+     * @example
+     * // Update one RegistrationNikLock
+     * const registrationNikLock = await prisma.registrationNikLock.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RegistrationNikLockUpdateArgs>(args: SelectSubset<T, RegistrationNikLockUpdateArgs<ExtArgs>>): Prisma__RegistrationNikLockClient<$Result.GetResult<Prisma.$RegistrationNikLockPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more RegistrationNikLocks.
+     * @param {RegistrationNikLockDeleteManyArgs} args - Arguments to filter RegistrationNikLocks to delete.
+     * @example
+     * // Delete a few RegistrationNikLocks
+     * const { count } = await prisma.registrationNikLock.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RegistrationNikLockDeleteManyArgs>(args?: SelectSubset<T, RegistrationNikLockDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more RegistrationNikLocks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RegistrationNikLockUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many RegistrationNikLocks
+     * const registrationNikLock = await prisma.registrationNikLock.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RegistrationNikLockUpdateManyArgs>(args: SelectSubset<T, RegistrationNikLockUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one RegistrationNikLock.
+     * @param {RegistrationNikLockUpsertArgs} args - Arguments to update or create a RegistrationNikLock.
+     * @example
+     * // Update or create a RegistrationNikLock
+     * const registrationNikLock = await prisma.registrationNikLock.upsert({
+     *   create: {
+     *     // ... data to create a RegistrationNikLock
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the RegistrationNikLock we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RegistrationNikLockUpsertArgs>(args: SelectSubset<T, RegistrationNikLockUpsertArgs<ExtArgs>>): Prisma__RegistrationNikLockClient<$Result.GetResult<Prisma.$RegistrationNikLockPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of RegistrationNikLocks.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RegistrationNikLockCountArgs} args - Arguments to filter RegistrationNikLocks to count.
+     * @example
+     * // Count the number of RegistrationNikLocks
+     * const count = await prisma.registrationNikLock.count({
+     *   where: {
+     *     // ... the filter for the RegistrationNikLocks we want to count
+     *   }
+     * })
+    **/
+    count<T extends RegistrationNikLockCountArgs>(
+      args?: Subset<T, RegistrationNikLockCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RegistrationNikLockCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a RegistrationNikLock.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RegistrationNikLockAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RegistrationNikLockAggregateArgs>(args: Subset<T, RegistrationNikLockAggregateArgs>): Prisma.PrismaPromise<GetRegistrationNikLockAggregateType<T>>
+
+    /**
+     * Group by RegistrationNikLock.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RegistrationNikLockGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RegistrationNikLockGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RegistrationNikLockGroupByArgs['orderBy'] }
+        : { orderBy?: RegistrationNikLockGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RegistrationNikLockGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRegistrationNikLockGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the RegistrationNikLock model
+   */
+  readonly fields: RegistrationNikLockFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for RegistrationNikLock.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RegistrationNikLockClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the RegistrationNikLock model
+   */ 
+  interface RegistrationNikLockFieldRefs {
+    readonly nikHash: FieldRef<"RegistrationNikLock", 'String'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * RegistrationNikLock findUnique
+   */
+  export type RegistrationNikLockFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RegistrationNikLock
+     */
+    select?: RegistrationNikLockSelect<ExtArgs> | null
+    /**
+     * Filter, which RegistrationNikLock to fetch.
+     */
+    where: RegistrationNikLockWhereUniqueInput
+  }
+
+  /**
+   * RegistrationNikLock findUniqueOrThrow
+   */
+  export type RegistrationNikLockFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RegistrationNikLock
+     */
+    select?: RegistrationNikLockSelect<ExtArgs> | null
+    /**
+     * Filter, which RegistrationNikLock to fetch.
+     */
+    where: RegistrationNikLockWhereUniqueInput
+  }
+
+  /**
+   * RegistrationNikLock findFirst
+   */
+  export type RegistrationNikLockFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RegistrationNikLock
+     */
+    select?: RegistrationNikLockSelect<ExtArgs> | null
+    /**
+     * Filter, which RegistrationNikLock to fetch.
+     */
+    where?: RegistrationNikLockWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RegistrationNikLocks to fetch.
+     */
+    orderBy?: RegistrationNikLockOrderByWithRelationInput | RegistrationNikLockOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RegistrationNikLocks.
+     */
+    cursor?: RegistrationNikLockWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RegistrationNikLocks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RegistrationNikLocks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RegistrationNikLocks.
+     */
+    distinct?: RegistrationNikLockScalarFieldEnum | RegistrationNikLockScalarFieldEnum[]
+  }
+
+  /**
+   * RegistrationNikLock findFirstOrThrow
+   */
+  export type RegistrationNikLockFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RegistrationNikLock
+     */
+    select?: RegistrationNikLockSelect<ExtArgs> | null
+    /**
+     * Filter, which RegistrationNikLock to fetch.
+     */
+    where?: RegistrationNikLockWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RegistrationNikLocks to fetch.
+     */
+    orderBy?: RegistrationNikLockOrderByWithRelationInput | RegistrationNikLockOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for RegistrationNikLocks.
+     */
+    cursor?: RegistrationNikLockWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RegistrationNikLocks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RegistrationNikLocks.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of RegistrationNikLocks.
+     */
+    distinct?: RegistrationNikLockScalarFieldEnum | RegistrationNikLockScalarFieldEnum[]
+  }
+
+  /**
+   * RegistrationNikLock findMany
+   */
+  export type RegistrationNikLockFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RegistrationNikLock
+     */
+    select?: RegistrationNikLockSelect<ExtArgs> | null
+    /**
+     * Filter, which RegistrationNikLocks to fetch.
+     */
+    where?: RegistrationNikLockWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of RegistrationNikLocks to fetch.
+     */
+    orderBy?: RegistrationNikLockOrderByWithRelationInput | RegistrationNikLockOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing RegistrationNikLocks.
+     */
+    cursor?: RegistrationNikLockWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` RegistrationNikLocks from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` RegistrationNikLocks.
+     */
+    skip?: number
+    distinct?: RegistrationNikLockScalarFieldEnum | RegistrationNikLockScalarFieldEnum[]
+  }
+
+  /**
+   * RegistrationNikLock create
+   */
+  export type RegistrationNikLockCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RegistrationNikLock
+     */
+    select?: RegistrationNikLockSelect<ExtArgs> | null
+    /**
+     * The data needed to create a RegistrationNikLock.
+     */
+    data: XOR<RegistrationNikLockCreateInput, RegistrationNikLockUncheckedCreateInput>
+  }
+
+  /**
+   * RegistrationNikLock createMany
+   */
+  export type RegistrationNikLockCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many RegistrationNikLocks.
+     */
+    data: RegistrationNikLockCreateManyInput | RegistrationNikLockCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * RegistrationNikLock update
+   */
+  export type RegistrationNikLockUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RegistrationNikLock
+     */
+    select?: RegistrationNikLockSelect<ExtArgs> | null
+    /**
+     * The data needed to update a RegistrationNikLock.
+     */
+    data: XOR<RegistrationNikLockUpdateInput, RegistrationNikLockUncheckedUpdateInput>
+    /**
+     * Choose, which RegistrationNikLock to update.
+     */
+    where: RegistrationNikLockWhereUniqueInput
+  }
+
+  /**
+   * RegistrationNikLock updateMany
+   */
+  export type RegistrationNikLockUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update RegistrationNikLocks.
+     */
+    data: XOR<RegistrationNikLockUpdateManyMutationInput, RegistrationNikLockUncheckedUpdateManyInput>
+    /**
+     * Filter which RegistrationNikLocks to update
+     */
+    where?: RegistrationNikLockWhereInput
+  }
+
+  /**
+   * RegistrationNikLock upsert
+   */
+  export type RegistrationNikLockUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RegistrationNikLock
+     */
+    select?: RegistrationNikLockSelect<ExtArgs> | null
+    /**
+     * The filter to search for the RegistrationNikLock to update in case it exists.
+     */
+    where: RegistrationNikLockWhereUniqueInput
+    /**
+     * In case the RegistrationNikLock found by the `where` argument doesn't exist, create a new RegistrationNikLock with this data.
+     */
+    create: XOR<RegistrationNikLockCreateInput, RegistrationNikLockUncheckedCreateInput>
+    /**
+     * In case the RegistrationNikLock was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RegistrationNikLockUpdateInput, RegistrationNikLockUncheckedUpdateInput>
+  }
+
+  /**
+   * RegistrationNikLock delete
+   */
+  export type RegistrationNikLockDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RegistrationNikLock
+     */
+    select?: RegistrationNikLockSelect<ExtArgs> | null
+    /**
+     * Filter which RegistrationNikLock to delete.
+     */
+    where: RegistrationNikLockWhereUniqueInput
+  }
+
+  /**
+   * RegistrationNikLock deleteMany
+   */
+  export type RegistrationNikLockDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which RegistrationNikLocks to delete
+     */
+    where?: RegistrationNikLockWhereInput
+  }
+
+  /**
+   * RegistrationNikLock without action
+   */
+  export type RegistrationNikLockDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the RegistrationNikLock
+     */
+    select?: RegistrationNikLockSelect<ExtArgs> | null
+  }
+
+
+  /**
    * Model QrToken
    */
 
@@ -15609,6 +16479,13 @@ export namespace Prisma {
   export type ParticipantScalarFieldEnum = (typeof ParticipantScalarFieldEnum)[keyof typeof ParticipantScalarFieldEnum]
 
 
+  export const RegistrationNikLockScalarFieldEnum: {
+    nikHash: 'nikHash'
+  };
+
+  export type RegistrationNikLockScalarFieldEnum = (typeof RegistrationNikLockScalarFieldEnum)[keyof typeof RegistrationNikLockScalarFieldEnum]
+
+
   export const QrTokenScalarFieldEnum: {
     token: 'token',
     participantId: 'participantId',
@@ -15847,16 +16724,16 @@ export namespace Prisma {
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    email?: string
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
     fullName?: StringFilter<"User"> | string
+    email?: StringFilter<"User"> | string
     phoneNumber?: StringFilter<"User"> | string
     createdAt?: DateTimeFilter<"User"> | Date | string
     orders?: OrderListRelationFilter
     logs?: LogListRelationFilter
-  }, "id" | "email">
+  }, "id">
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
@@ -16403,6 +17280,38 @@ export namespace Prisma {
     communityName?: StringNullableWithAggregatesFilter<"Participant"> | string | null
     bibNumber?: StringNullableWithAggregatesFilter<"Participant"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Participant"> | Date | string
+  }
+
+  export type RegistrationNikLockWhereInput = {
+    AND?: RegistrationNikLockWhereInput | RegistrationNikLockWhereInput[]
+    OR?: RegistrationNikLockWhereInput[]
+    NOT?: RegistrationNikLockWhereInput | RegistrationNikLockWhereInput[]
+    nikHash?: StringFilter<"RegistrationNikLock"> | string
+  }
+
+  export type RegistrationNikLockOrderByWithRelationInput = {
+    nikHash?: SortOrder
+  }
+
+  export type RegistrationNikLockWhereUniqueInput = Prisma.AtLeast<{
+    nikHash?: string
+    AND?: RegistrationNikLockWhereInput | RegistrationNikLockWhereInput[]
+    OR?: RegistrationNikLockWhereInput[]
+    NOT?: RegistrationNikLockWhereInput | RegistrationNikLockWhereInput[]
+  }, "nikHash">
+
+  export type RegistrationNikLockOrderByWithAggregationInput = {
+    nikHash?: SortOrder
+    _count?: RegistrationNikLockCountOrderByAggregateInput
+    _max?: RegistrationNikLockMaxOrderByAggregateInput
+    _min?: RegistrationNikLockMinOrderByAggregateInput
+  }
+
+  export type RegistrationNikLockScalarWhereWithAggregatesInput = {
+    AND?: RegistrationNikLockScalarWhereWithAggregatesInput | RegistrationNikLockScalarWhereWithAggregatesInput[]
+    OR?: RegistrationNikLockScalarWhereWithAggregatesInput[]
+    NOT?: RegistrationNikLockScalarWhereWithAggregatesInput | RegistrationNikLockScalarWhereWithAggregatesInput[]
+    nikHash?: StringWithAggregatesFilter<"RegistrationNikLock"> | string
   }
 
   export type QrTokenWhereInput = {
@@ -17540,6 +18449,34 @@ export namespace Prisma {
     communityName?: NullableStringFieldUpdateOperationsInput | string | null
     bibNumber?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RegistrationNikLockCreateInput = {
+    nikHash: string
+  }
+
+  export type RegistrationNikLockUncheckedCreateInput = {
+    nikHash: string
+  }
+
+  export type RegistrationNikLockUpdateInput = {
+    nikHash?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type RegistrationNikLockUncheckedUpdateInput = {
+    nikHash?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type RegistrationNikLockCreateManyInput = {
+    nikHash: string
+  }
+
+  export type RegistrationNikLockUpdateManyMutationInput = {
+    nikHash?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type RegistrationNikLockUncheckedUpdateManyInput = {
+    nikHash?: StringFieldUpdateOperationsInput | string
   }
 
   export type QrTokenCreateInput = {
@@ -18762,6 +19699,18 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumBloodTypeFilter<$PrismaModel>
     _max?: NestedEnumBloodTypeFilter<$PrismaModel>
+  }
+
+  export type RegistrationNikLockCountOrderByAggregateInput = {
+    nikHash?: SortOrder
+  }
+
+  export type RegistrationNikLockMaxOrderByAggregateInput = {
+    nikHash?: SortOrder
+  }
+
+  export type RegistrationNikLockMinOrderByAggregateInput = {
+    nikHash?: SortOrder
   }
 
   export type ParticipantNullableRelationFilter = {
@@ -22487,6 +23436,10 @@ export namespace Prisma {
      * @deprecated Use ParticipantDefaultArgs instead
      */
     export type ParticipantArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ParticipantDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use RegistrationNikLockDefaultArgs instead
+     */
+    export type RegistrationNikLockArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = RegistrationNikLockDefaultArgs<ExtArgs>
     /**
      * @deprecated Use QrTokenDefaultArgs instead
      */

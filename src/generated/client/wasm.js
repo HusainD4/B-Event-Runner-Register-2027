@@ -210,6 +210,10 @@ exports.Prisma.ParticipantScalarFieldEnum = {
   createdAt: 'createdAt'
 };
 
+exports.Prisma.RegistrationNikLockScalarFieldEnum = {
+  nikHash: 'nikHash'
+};
+
 exports.Prisma.QrTokenScalarFieldEnum = {
   token: 'token',
   participantId: 'participantId',
@@ -338,6 +342,7 @@ exports.Prisma.ModelName = {
   Order: 'Order',
   PdfDelivery: 'PdfDelivery',
   Participant: 'Participant',
+  RegistrationNikLock: 'RegistrationNikLock',
   QrToken: 'QrToken',
   Log: 'Log',
   BibConfiguration: 'BibConfiguration',

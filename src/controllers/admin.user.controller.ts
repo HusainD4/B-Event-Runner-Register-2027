@@ -109,7 +109,7 @@ export const updateUser = async (req: AuthenticatedRequest, res: Response): Prom
     }
 
     if (parseResult.data.email && parseResult.data.email !== existing.email) {
-      const emailExists = await prisma.user.findUnique({ where: { email: parseResult.data.email } });
+      const emailExists = await prisma.user.findFirst({ where: { email: parseResult.data.email, id: { not: id } } });
       if (emailExists) {
         return res.status(400).json({ status: 'error', message: 'Email sudah terdaftar pada user lain.' });
       }

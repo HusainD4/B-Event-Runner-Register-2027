@@ -3,34 +3,29 @@ import { snap } from '../config/midtrans';
 import prisma from '../config/database'; // Menggunakan singleton database terpusat
 import { sendOrderNotification } from '../services/notification.service';
 import { getEventRegistrationStatus, getEventTimerPhase } from '../utils/event-timing';
+import type { Prisma } from '../generated/client';
+import { createHash } from 'node:crypto';
 
 type ParticipantNikInput = { eventId?: string; nik: string };
 
 async function findDuplicateParticipantNumbers(
   participants: ParticipantNikInput[],
-  defaultEventId?: string
+  db: Pick<Prisma.TransactionClient, 'participant'> = prisma
 ): Promise<number[]> {
-  const entries = participants.map((participant, index) => ({
-    participantNumber: index + 1,
-    eventId: participant.eventId || defaultEventId,
-    nik: participant.nik,
-  }));
-  const validEntries = entries.filter((entry): entry is { participantNumber: number; eventId: string; nik: string } => Boolean(entry.eventId));
-  if (!validEntries.length) return [];
-
-  const existing = await prisma.participant.findMany({
+  const existing = await db.participant.findMany({
     where: {
-      OR: validEntries.map(entry => ({ eventId: entry.eventId, nik: entry.nik })),
+      nik: { in: participants.map(participant => participant.nik) },
+      order: { status: { notIn: ['CANCEL', 'EXPIRE', 'DENY'] } },
     },
-    select: { eventId: true, nik: true },
+    select: { nik: true },
   });
-  const existingKeys = new Set(existing.map(entry => `${entry.eventId}:${entry.nik}`));
+  const existingKeys = new Set(existing.map(entry => entry.nik));
   const seenKeys = new Set<string>();
   const duplicates: number[] = [];
 
-  validEntries.forEach(entry => {
-    const key = `${entry.eventId}:${entry.nik}`;
-    if (existingKeys.has(key) || seenKeys.has(key)) duplicates.push(entry.participantNumber);
+  participants.forEach((entry, index) => {
+    const key = entry.nik;
+    if (existingKeys.has(key) || seenKeys.has(key)) duplicates.push(index + 1);
     seenKeys.add(key);
   });
 
@@ -143,12 +138,12 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
       include: { jerseys: true }
     });
     const eventMap = new Map<string, any>(events.map(ev => [ev.id, ev]));
-    const duplicateParticipants = await findDuplicateParticipantNumbers(participants, eventId);
+    const duplicateParticipants = await findDuplicateParticipantNumbers(participants);
     if (duplicateParticipants.length) {
       return res.status(409).json({
         status: 'error',
         code: 'DUPLICATE_NIK',
-        message: `NIK peserta #${duplicateParticipants[0]} sudah terdaftar pada kategori yang sama dan tidak dapat digunakan lagi.`,
+        message: `NIK peserta #${duplicateParticipants[0]} sudah terdaftar dan tidak dapat digunakan lagi.`,
         duplicateParticipants,
       });
     }
@@ -223,29 +218,6 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
     const cleanPhone = normalizePhone(bookerPhone || participants[0]?.phoneNumber || participants[0]?.emergencyContactPhone || '081234567890');
     const cleanName = bookerName ? String(bookerName).trim() : (participants[0]?.fullNameKtp || 'Peserta Tegal Run 2026');
 
-    let targetUser: any = null;
-    if (cleanEmail) {
-      targetUser = await prisma.user.findFirst({ where: { email: cleanEmail } });
-    }
-
-    if (!targetUser) {
-      targetUser = await prisma.user.create({
-        data: {
-          fullName: cleanName,
-          email: cleanEmail || `peserta_${Date.now()}@tegalrun.id`,
-          phoneNumber: cleanPhone,
-        },
-      });
-    } else if (normalizePhone(targetUser.phoneNumber) !== cleanPhone) {
-      return res.status(409).json({
-        status: 'error',
-        code: 'BOOKER_CONTACT_MISMATCH',
-        message: 'Data kontak pemesan tidak sesuai. Periksa kembali email dan nomor WhatsApp, atau hubungi panitia untuk bantuan.',
-      });
-    }
-
-    const finalUserId = targetUser.id;
-
     // Generate Order ID Unik untuk Midtrans (Format: TR-Waktu-Random)
     const midtransOrderId = `TR-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const paymentExpiresAt = new Date(Date.now() + paymentTimerMinutes * 60_000);
@@ -254,6 +226,30 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
     // 3. MULAI DATABASE TRANSACTION (ATOMIC)
     // =========================================================================
     const orderResult = await prisma.$transaction(async (tx) => {
+      const nikHashes = [...new Set<string>(participants.map((participant: ParticipantNikInput) =>
+        createHash('sha256').update(participant.nik).digest('hex')
+      ))].sort();
+      for (const hash of nikHashes) {
+        await tx.$executeRaw`INSERT INTO registration_nik_locks (nik_hash) VALUES (${hash}) ON DUPLICATE KEY UPDATE nik_hash = nik_hash`;
+      }
+      const transactionDuplicates = await findDuplicateParticipantNumbers(participants, tx);
+      if (transactionDuplicates.length) {
+        throw Object.assign(new Error('DUPLICATE_NIK'), { duplicateParticipants: transactionDuplicates });
+      }
+      const candidates = cleanEmail
+        ? await tx.user.findMany({ where: { email: cleanEmail }, orderBy: { createdAt: 'asc' } })
+        : [];
+      let targetUser = candidates.find(user => normalizePhone(user.phoneNumber) === cleanPhone);
+      if (!targetUser) {
+        targetUser = await tx.user.create({
+          data: {
+            fullName: cleanName,
+            email: cleanEmail || `peserta_${Date.now()}@tegalrun.id`,
+            phoneNumber: cleanPhone,
+          },
+        });
+      }
+      const finalUserId = targetUser.id;
       const currentSettings = await tx.appSetting.findMany({
         where: {
           key: {
@@ -397,8 +393,8 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
         },
       });
 
-      return order; 
-    });
+      return order;
+    }, { isolationLevel: 'ReadCommitted' });
     // ================== TRANSAKSI DATABASE SELESAI ===========================
 
     // 4. GENERATE TOKEN PEMBAYARAN MIDTRANS (SNAP)
@@ -472,6 +468,14 @@ export const registerEvent = async (req: Request, res: Response): Promise<any> =
     });
 
   } catch (error: any) {
+    if (error.message === 'DUPLICATE_NIK') {
+      return res.status(409).json({
+        status: 'error',
+        code: 'DUPLICATE_NIK',
+        message: `NIK peserta #${error.duplicateParticipants[0]} sudah terdaftar dan tidak dapat digunakan lagi.`,
+        duplicateParticipants: error.duplicateParticipants,
+      });
+    }
     if (error.message === "SOLD_OUT") {
       return res.status(400).json({ 
         status: "error", 
