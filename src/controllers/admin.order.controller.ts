@@ -4,6 +4,7 @@ import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import { coreApi } from '../config/midtrans';
 import { queueAutomaticPdfDeliveries } from '../services/pdf-delivery.service';
+import { getGlobalBibSettings } from '../services/bib.service';
 
 const updateOrderStatusSchema = z.object({
   status: z.enum(['PENDING', 'SETTLEMENT', 'CAPTURE', 'CANCEL', 'EXPIRE', 'DENY', 'REFUND']),
@@ -282,6 +283,7 @@ export const syncAllMidtransOrders = async (req: AuthenticatedRequest, res: Resp
         const fraudStatus = statusRes?.fraud_status || 'accept';
 
         if (midtransStatus === 'settlement' || (midtransStatus === 'capture' && fraudStatus === 'accept')) {
+          const bibSettings = await getGlobalBibSettings();
           await prisma.$transaction(async (tx) => {
             await tx.order.update({
               where: { id: order.id },
@@ -290,7 +292,7 @@ export const syncAllMidtransOrders = async (req: AuthenticatedRequest, res: Resp
             await queueAutomaticPdfDeliveries(tx, order.id);
 
             for (const p of order.participants || []) {
-              if (!p.bibNumber) {
+              if (bibSettings.timing === 'PAYMENT_SUCCESS' && !p.bibNumber) {
                 const prefix = p.event?.category === '10K' ? '10' : '05';
                 const randomNum = Math.floor(1000 + Math.random() * 9000);
                 const bibNum = `${prefix}-${randomNum}`;

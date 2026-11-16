@@ -11,7 +11,7 @@ export interface BibSettings {
 }
 
 const DEFAULT_BIB_SETTINGS: BibSettings = {
-  timing: 'PAYMENT_SUCCESS',
+  timing: 'MANUAL',
   defaultPrefix: '10-',
   digitLength: 4,
   startNumber: 1001,
@@ -163,4 +163,3 @@ export async function bulkGenerateBibs(eventId?: string): Promise<{ generated: n
     message: `Berhasil mengenerate ${count} nomor BIB untuk peserta lunas.`,
   };
 }
-

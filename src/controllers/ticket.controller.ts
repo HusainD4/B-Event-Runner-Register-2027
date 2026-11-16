@@ -215,6 +215,7 @@ async function syncOrderWithMidtrans(order: any, siteOrigin?: string): Promise<b
     const fraudStatus = statusRes?.fraud_status || 'accept';
 
     if (midtransStatus === 'settlement' || (midtransStatus === 'capture' && fraudStatus === 'accept')) {
+      const bibSettings = await getGlobalBibSettings();
       const changed = await prisma.$transaction(async (tx) => {
         const update = await tx.order.updateMany({
           where: { id: order.id, status: 'PENDING' },
@@ -224,7 +225,7 @@ async function syncOrderWithMidtrans(order: any, siteOrigin?: string): Promise<b
         await queueAutomaticPdfDeliveries(tx, order.id);
 
         for (const p of order.participants || []) {
-          if (!p.bibNumber) {
+          if (bibSettings.timing === 'PAYMENT_SUCCESS' && !p.bibNumber) {
             const prefix = p.event?.category === '10K' ? '10' : '05';
             const randomNum = Math.floor(1000 + Math.random() * 9000);
             const bib = `${prefix}-${randomNum}`;
@@ -571,6 +572,7 @@ export const syncMidtransStatus = async (req: Request, res: Response): Promise<a
 
     // Jika terjadi perubahan status dari PENDING ke SETTLEMENT
     if (finalStatus === 'SETTLEMENT' && order.status !== 'SETTLEMENT') {
+      const bibSettings = await getGlobalBibSettings();
       const changed = await prisma.$transaction(async (tx) => {
         const update = await tx.order.updateMany({
           where: { id: order.id, status: 'PENDING' },
@@ -581,7 +583,7 @@ export const syncMidtransStatus = async (req: Request, res: Response): Promise<a
 
         // Generate nomor BIB dada resmi
         for (const p of order.participants) {
-          if (!p.bibNumber) {
+          if (bibSettings.timing === 'PAYMENT_SUCCESS' && !p.bibNumber) {
             const prefix = p.event?.category === '10K' ? '10' : '05';
             const randomNum = Math.floor(1000 + Math.random() * 9000);
             const bib = `${prefix}-${randomNum}`;
