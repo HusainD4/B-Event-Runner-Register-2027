@@ -77,11 +77,6 @@ export const adminLogin = async (req: AuthenticatedRequest, res: Response): Prom
 
     const tokenPayload = {
       adminId: admin.id,
-      username: admin.username,
-      email: admin.email,
-      roleId: admin.roleId,
-      roleName: admin.role.name,
-      permissions,
       tokenVersion: admin.tokenVersion,
     };
 
