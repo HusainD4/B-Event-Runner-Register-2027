@@ -48,7 +48,7 @@ export const participantNikCheckLimiter = rateLimit({
 });
 
 const ADMIN_LOGIN_RATE_COOKIE = 'tegal_admin_login_rate';
-const ADMIN_LOGIN_RATE_WINDOW_MS = 30 * 60 * 1000;
+const ADMIN_LOGIN_RATE_WINDOW_MS = 15 * 60 * 1000;
 const ADMIN_LOGIN_ACCOUNT_KEY_SECRET = randomBytes(32);
 
 interface AdminLoginRequest extends Request {
@@ -88,7 +88,7 @@ const adminLoginRateLimiter = rateLimit({
   handler: (req: Request, res: Response) => {
     return res.status(429).json({
       status: 'error',
-      message: '🚨 Terlalu banyak percobaan login admin yang gagal di browser ini. Silakan coba kembali setelah 30 menit.',
+      message: '🚨 Terlalu banyak percobaan login admin yang gagal di browser ini. Silakan coba kembali setelah 15 menit.',
     });
   },
 });
@@ -109,7 +109,7 @@ const adminLoginAccountRateLimiter = rateLimit({
   legacyHeaders: false,
   handler: (_req: Request, res: Response) => res.status(429).json({
     status: 'error',
-    message: '🚨 Terlalu banyak percobaan login untuk akun ini. Silakan coba kembali setelah 30 menit.',
+    message: '🚨 Terlalu banyak percobaan login untuk akun ini. Silakan coba kembali setelah 15 menit.',
   }),
 });
 

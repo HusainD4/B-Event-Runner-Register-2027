@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 const sandbox = await mkdtemp(path.join(tmpdir(), 'event-register-test-'));
 Object.assign(process.env, {
@@ -17,6 +19,105 @@ Object.assign(process.env, {
 const { default: prisma } = await import('../src/config/database.ts');
 const { snap } = await import('../src/config/midtrans.ts');
 const { registerEvent } = await import('../src/controllers/register.controller.ts');
+const { registerPayloadSchema } = await import('../src/middlewares/validate.ts');
+const { isValidRegistrationPhone, setupRegistrationPhone } = await import('../../frontend/js/registration-phone.js');
+
+test('registration WhatsApp numbers use +62 and have 10 to 14 digits on both client and server', () => {
+  const eventId = 'c0a80101-1234-4567-8901-123456789abc';
+  const participant = {
+    fullNameKtp: 'Peserta', bibName: 'PESERTA', nik: '1234567890123456',
+    gender: 'MALE', birthPlace: 'Tegal', birthDate: '2000-01-01',
+    fullAddress: 'Alamat lengkap', bloodType: 'O',
+    emergencyContactName: 'Keluarga', emergencyContactPhone: '081234567890',
+  };
+  for (const prefix of ['08', '628', '+628']) {
+    for (const length of [9, 10, 11, 12, 13, 14, 15]) {
+      const phone = prefix + '1'.repeat(length - prefix.replace('+', '').length);
+      const expected = prefix === '+628' && length >= 10 && length <= 14;
+      assert.equal(isValidRegistrationPhone(phone), expected, phone);
+      const body = { eventId, bookerPhone: phone, participants: [{ ...participant, phoneNumber: phone }] };
+      assert.equal(registerPayloadSchema.safeParse({ body }).success, expected, phone);
+    }
+  }
+  for (const phone of ['+628123456', '+628123456789012', '1234567890', '+62812 345678', '+62812a345678']) {
+    assert.equal(isValidRegistrationPhone(phone), false, phone);
+    assert.equal(registerPayloadSchema.safeParse({ body: { eventId, bookerPhone: phone, participants: [{ ...participant, phoneNumber: '+62812345678' }] } }).success, false, phone);
+    assert.equal(registerPayloadSchema.safeParse({ body: { eventId, bookerPhone: '+62812345678', participants: [{ ...participant, phoneNumber: phone }] } }).success, false, phone);
+  }
+});
+
+test('registration input converts 08 or 628 and limits the plus-prefixed number', () => {
+  let onInput;
+  const input = { value: '', addEventListener(_type, listener) { onInput = listener; } };
+  setupRegistrationPhone(input);
+  assert.equal(input.maxLength, 15);
+  input.value = '081234567890';
+  onInput();
+  assert.equal(input.value, '+6281234567890');
+  input.value = '6281234567890';
+  onInput();
+  assert.equal(input.value, '+6281234567890');
+  input.value = '081234567890123';
+  onInput();
+  assert.equal(input.value, '+6281234567890123');
+  assert.equal(isValidRegistrationPhone(input.value), false);
+});
+
+test('registration validation marks incorrect fields and clears corrected fields', () => {
+  const source = readFileSync(new URL('../../frontend/js/app.js', import.meta.url), 'utf8');
+  const validation = source.slice(source.indexOf('const validatedRegistrationSteps ='), source.indexOf('function updateSummaryReview()'));
+  const elements = new Map();
+  const errors = new Map();
+  const makeField = (id, value = '') => {
+    const attributes = new Map();
+    const field = {
+      value, validity: { valid: false }, dataset: {}, isConnected: true,
+      getAttribute: name => attributes.get(name) || null,
+      setAttribute: (name, value) => attributes.set(name, value),
+      removeAttribute: name => attributes.delete(name),
+      focus() { this.focused = true; },
+      closest(selector) {
+        if (selector === '.form-group') return { appendChild(error) { errors.set(error.id, error); } };
+        if (selector === '#stepSection1') return true;
+        return null;
+      },
+    };
+    elements.set(id, field);
+    return field;
+  };
+  const name = makeField('bookerName');
+  const email = makeField('bookerEmail');
+  const phone = makeField('bookerPhone');
+  const document = {
+    getElementById: id => elements.get(id) || errors.get(id),
+    createElement: () => ({ remove() { errors.delete(this.id); } }),
+  };
+  const context = vm.createContext({
+    document, isValidRegistrationPhone, state: { participantCount: 0 },
+    showToast() {}, syncBookerToParticipant1() {},
+  });
+  vm.runInContext(validation, context);
+
+  assert.equal(context.validateStep(1), false);
+  for (const field of [name, email, phone]) {
+    assert.equal(field.getAttribute('aria-invalid'), 'true');
+    assert.ok(errors.get(field.getAttribute('aria-describedby'))?.textContent);
+  }
+  assert.equal(name.focused, true);
+
+  name.value = 'Nama Peserta';
+  phone.value = '+6281234567890';
+  email.value = 'invalid@';
+  assert.equal(context.validateStep(1, false), false);
+  assert.equal(name.getAttribute('aria-invalid'), null);
+  assert.equal(phone.getAttribute('aria-invalid'), null);
+  assert.equal(email.getAttribute('aria-invalid'), 'true');
+  email.value = 'peserta@example.test';
+  email.validity.valid = true;
+  assert.equal(context.validateStep(1, false), true);
+  assert.equal(email.getAttribute('aria-invalid'), null);
+  assert.equal(errors.size, 0);
+});
 
 function response() {
   return {

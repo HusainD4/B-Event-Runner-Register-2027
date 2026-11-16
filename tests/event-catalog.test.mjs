@@ -46,7 +46,9 @@ test('event catalog preserves actions and remains responsive', async () => {
       if (contents[pathname]) return route.fulfill({ contentType: pathname.endsWith('.js') ? 'text/javascript' : 'text/css', body: contents[pathname] });
       return route.fulfill({ contentType: 'text/html', body: `<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/admin.css">
-        ${contents['/admin/pages/events.html']}${contents['/admin/modals/modals.html']}<div id="adminToastContainer"></div>` });
+        <div class="admin-main-wrapper"><main class="admin-content-body">
+        ${contents['/admin/pages/events.html']}</main></div>
+        ${contents['/admin/modals/modals.html']}<div id="adminToastContainer"></div>` });
     });
     await page.goto('http://test.internal/');
     await page.evaluate(async () => {
@@ -54,7 +56,7 @@ test('event catalog preserves actions and remains responsive', async () => {
       window.calls = [];
       window.state = { profile: { role: { name: 'SUPERADMIN', permissions: [] } }, events: [
         { id:'event-1', ticketName:'Lari & Senang', category:'10K', stock:100, price:250000, isClosed:false, benefits:[{}], jerseys:[{}] },
-        { id:'event-2', ticketName:'Kategori Timer', category:'5K', stock:0, price:100000, isClosed:false, registrationClosed:true, registrationClosedByTimer:true, followGlobalTimer:true },
+        { id:'event-2', ticketName:'Kategori Timer', category:'5K', stock:0, price:100000, isClosed:false, registrationClosed:true, registrationClosedByTimer:true, followGlobalTimer:true, registrationPhase:'RACE_DAY' },
       ] };
       window.events = await import('/admin/js/pages/events.js');
       window.events.renderEvents(window.state.events);
@@ -68,7 +70,7 @@ test('event catalog preserves actions and remains responsive', async () => {
     assert.ok(box.width <= 250 && Math.abs(box.width - box.height) <= 1, JSON.stringify(box));
     await page.locator('.event-catalog-summary').first().click();
     assert.equal(await page.locator('#eventStock-event-1').isVisible(), true);
-    for (const width of [1440, 768, 390, 320]) {
+    for (const width of [1440, 768, 640, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       const buttons = await page.locator('.event-catalog-card').first().locator('.admin-event-actions .btn').all();
       const boxes = await Promise.all(buttons.map(button => button.boundingBox()));
@@ -76,6 +78,36 @@ test('event catalog preserves actions and remains responsive', async () => {
       for (let i = 1; i < boxes.length; i++) {
         assert.ok(Math.abs(boxes[i].x - boxes[0].x) < 1 && Math.abs(boxes[i].width - boxes[0].width) < 1, `buttons not aligned at ${width}`);
         assert.ok(boxes[i].y >= boxes[i - 1].y + boxes[i - 1].height, `buttons overlap at ${width}`);
+      }
+      if (width <= 640) {
+        assert.ok(boxes.every(box => box.height >= 44), `touch targets at ${width}`);
+        const layout = await page.evaluate(() => {
+          const rect = selector => document.querySelector(selector).getBoundingClientRect();
+          const description = rect('.event-catalog-header p');
+          const headerActions = rect('.event-catalog-header .admin-action-bar');
+          const card = rect('.event-catalog-card');
+          const secondCard = rect('.event-catalog-card:nth-child(2)');
+          const list = rect('#adminEventsContainer');
+          const stock = rect('#eventStock-event-1');
+          const price = rect('#eventPrice-event-1');
+          const status = rect('.event-catalog-card:nth-child(2) .event-status-tag');
+          const visual = rect('.event-catalog-card:nth-child(2) .event-catalog-visual');
+          return {
+            headerGap: headerActions.top - description.bottom,
+            centered: Math.abs((card.left + (Math.abs(card.top - secondCard.top) < 1 ? secondCard.right : card.right)) / 2 - (list.left + list.right) / 2),
+            stockBottom: stock.bottom,
+            priceTop: price.top,
+            statusRight: status.right,
+            visualRight: visual.right,
+          };
+        });
+        assert.ok(layout.headerGap >= 0 && layout.headerGap <= 24, `header spacing at ${width}: ${JSON.stringify(layout)}`);
+        assert.ok(layout.centered <= 1, `card alignment at ${width}: ${JSON.stringify(layout)}`);
+        assert.ok(layout.priceTop >= layout.stockBottom, `fields overlap at ${width}: ${JSON.stringify(layout)}`);
+        assert.ok(layout.statusRight <= layout.visualRight, `status overflow at ${width}: ${JSON.stringify(layout)}`);
+        for (const button of await page.locator('.event-catalog-header .btn').all()) {
+          assert.ok((await button.boundingBox()).height >= 44, `header touch target at ${width}`);
+        }
       }
     }
     await page.locator('#eventStock-event-1').fill('42');
@@ -95,7 +127,7 @@ test('event catalog preserves actions and remains responsive', async () => {
     await page.locator('.event-catalog-summary').first().click();
     assert.equal(await page.locator('.btn-quick-save-event').first().isVisible(), false);
     assert.equal(await page.locator('.btn-delete-event').first().isVisible(), false);
-    for (const width of [1440, 768, 390, 320]) {
+    for (const width of [1440, 768, 640, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       const overflow = await page.evaluate(() => ({
         width: document.documentElement.scrollWidth,
