@@ -55,14 +55,31 @@ test('event catalog preserves actions and remains responsive', async () => {
       document.querySelector('#pane-events').classList.add('active');
       window.calls = [];
       window.state = { profile: { role: { name: 'SUPERADMIN', permissions: [] } }, events: [
-        { id:'event-1', ticketName:'Lari & Senang', category:'10K', stock:100, price:250000, isClosed:false, benefits:[{}], jerseys:[{}] },
-        { id:'event-2', ticketName:'Kategori Timer', category:'5K', stock:0, price:100000, isClosed:false, registrationClosed:true, registrationClosedByTimer:true, followGlobalTimer:true, registrationPhase:'RACE_DAY' },
+        { id:'event-1', ticketName:'Lari & Senang', category:'10K', stock:100, price:250000, isClosed:false, benefits:[
+          { id:'jersey', name:'Jersey', description:'Kaos peserta' },
+          { id:'medal', name:'Medali', description:'Medali finisher' },
+        ], racepackBenefitIds:['jersey'], jerseys:[{}] },
+        { id:'event-2', ticketName:'Kategori Timer', category:'5K', stock:0, price:100000, isClosed:false, registrationClosed:true, registrationClosedByTimer:true, followGlobalTimer:true, registrationPhase:'RACE_DAY', benefits:[] },
       ] };
       window.events = await import('/admin/js/pages/events.js');
       window.events.renderEvents(window.state.events);
     });
     assert.equal(await page.locator('.event-catalog-card').count(), 2);
     assert.equal(await page.locator('.event-catalog-placeholder').count(), 2);
+    const config = page.locator('.racepack-config[data-event-id="event-1"]');
+    assert.equal(await page.locator('#adminEventsContainer .racepack-config').count(), 0);
+    assert.equal(await page.locator('#racepackConfigContainer .racepack-config').count(), 2);
+    assert.match(await config.locator('tbody').textContent(), /Jersey/);
+    assert.doesNotMatch(await config.locator('tbody').textContent(), /Medali/);
+    assert.match(await page.locator('.racepack-config[data-event-id="event-2"] tbody').textContent(), /Belum ada perlengkapan/);
+    await config.locator('input[value="medal"]').check();
+    assert.match(await config.locator('tbody').textContent(), /Medali/);
+    assert.match(await config.locator('.racepack-preview-label').textContent(), /belum disimpan/);
+    await config.locator('.btn-save-racepack-benefits').click();
+    await page.waitForFunction(() => window.calls.some(call => call.url.endsWith('/racepack-benefits')));
+    assert.deepEqual(await page.evaluate(() => JSON.parse(window.calls.find(call => call.url.endsWith('/racepack-benefits')).options.body)), { benefitIds:['jersey', 'medal'] });
+    assert.match(await config.locator('.racepack-preview-label').textContent(), /tersimpan/);
+    await page.evaluate(() => { window.calls = []; });
     assert.match(await page.locator('.event-catalog-card').first().textContent(), /Lari & Senang/);
     assert.equal(await page.locator('[data-id="event-2"].btn-toggle-close-event').isDisabled(), true);
     assert.equal(await page.locator('#eventStock-event-1').isVisible(), false);
@@ -127,6 +144,7 @@ test('event catalog preserves actions and remains responsive', async () => {
     await page.locator('.event-catalog-summary').first().click();
     assert.equal(await page.locator('.btn-quick-save-event').first().isVisible(), false);
     assert.equal(await page.locator('.btn-delete-event').first().isVisible(), false);
+    assert.equal(await page.locator('.racepack-config-section').isVisible(), false);
     for (const width of [1440, 768, 640, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       const overflow = await page.evaluate(() => ({

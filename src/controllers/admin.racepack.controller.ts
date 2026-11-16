@@ -5,10 +5,11 @@ import type { AuthenticatedRequest } from '../middlewares/auth';
 import { decryptQrPayload } from '../services/qr-crypto.service';
 import { getGlobalBibSettings, assignBibToParticipant } from '../services/bib.service';
 import { emitAdminEvent, emitAdminEventTo, emitDataChanged } from '../sockets';
+import { getRacepackBenefits } from '../services/racepack-benefits.service';
 
 const checkinSchema = z.object({
   participantId: z.string().min(1, 'Participant ID wajib diisi'),
-  items: z.array(z.string()).optional(),
+  items: z.array(z.string().min(1)).min(1, 'Centang semua perlengkapan racepack.'),
   notes: z.string().optional(),
 });
 
@@ -16,30 +17,37 @@ const queueSchema = z.object({
   participantId: z.string().min(1, 'Participant ID wajib diisi'),
 });
 
-// Helper: ambil peta checkin dari app_settings
+const racepackMapVersions = new WeakMap<Record<string, any>, string | null>();
+
 async function getRacepackCheckinsMap(): Promise<Record<string, any>> {
-  try {
-    const setting = await prisma.appSetting.findUnique({
-      where: { key: 'racepack_checkins' },
-    });
-    if (!setting || !setting.value) return {};
-    return JSON.parse(setting.value);
-  } catch {
-    return {};
+  const setting = await prisma.appSetting.findUnique({ where: { key: 'racepack_checkins' } });
+  const map: unknown = setting ? JSON.parse(setting.value) : {};
+  if (!map || typeof map !== 'object' || Array.isArray(map)) {
+    throw new Error('Data check-in racepack tidak valid. Hubungi administrator.');
   }
+  racepackMapVersions.set(map as Record<string, any>, setting?.value ?? null);
+  return map as Record<string, any>;
 }
 
-// Helper: simpan peta checkin ke app_settings
 async function saveRacepackCheckinsMap(map: Record<string, any>): Promise<void> {
-  await prisma.appSetting.upsert({
-    where: { key: 'racepack_checkins' },
-    update: { value: JSON.stringify(map) },
-    create: {
-      key: 'racepack_checkins',
-      value: JSON.stringify(map),
-      description: 'Penyimpanan status check-in dan serah terima racepack peserta',
-    },
-  });
+  const previous = racepackMapVersions.get(map);
+  if (previous === undefined) throw new Error('Versi data racepack tidak ditemukan.');
+  const value = JSON.stringify(map);
+  if (previous === null) {
+    try {
+      await prisma.appSetting.create({ data: {
+        key: 'racepack_checkins', value,
+        description: 'Penyimpanan status check-in dan serah terima racepack peserta',
+      } });
+    } catch (error: any) {
+      if (error?.code === 'P2002') throw new Error('Data racepack berubah. Muat ulang dan coba lagi.');
+      throw error;
+    }
+  } else {
+    const updated = await prisma.$executeRaw`UPDATE app_settings SET value = ${value}, updatedAt = NOW(3) WHERE \`key\` = 'racepack_checkins' AND BINARY value = BINARY ${previous}`;
+    if (updated !== 1) throw new Error('Data racepack berubah. Muat ulang dan coba lagi.');
+  }
+  racepackMapVersions.set(map, value);
 }
 
 /**
@@ -110,10 +118,11 @@ export const verifyRacepackCode = async (req: AuthenticatedRequest, res: Respons
 
           if (order && order.participants.length > 0) {
             const checkinsMap = await getRacepackCheckinsMap();
-            const participantsWithCheckin = order.participants.map((pt: any) => ({
+            const participantsWithCheckin = await Promise.all(order.participants.map(async (pt: any) => ({
               ...pt,
+              racepackBenefits: await getRacepackBenefits(pt.eventId),
               racepack: checkinsMap[pt.id] || { checkedIn: false },
-            }));
+            })));
 
             const isPaid = order.status === 'SETTLEMENT' || order.status === 'CAPTURE';
             return res.status(200).json({
@@ -158,6 +167,7 @@ export const verifyRacepackCode = async (req: AuthenticatedRequest, res: Respons
               data: {
                 isMaster: false,
                 participant,
+                racepackBenefits: await getRacepackBenefits(participant.eventId),
                 isPaid,
                 racepack: checkinInfo,
               },
@@ -215,10 +225,11 @@ export const verifyRacepackCode = async (req: AuthenticatedRequest, res: Respons
 
       if (potentialOrder && potentialOrder.participants.length > 1) {
         const checkinsMap = await getRacepackCheckinsMap();
-        const participantsWithCheckin = potentialOrder.participants.map((pt: any) => ({
+        const participantsWithCheckin = await Promise.all(potentialOrder.participants.map(async (pt: any) => ({
           ...pt,
+          racepackBenefits: await getRacepackBenefits(pt.eventId),
           racepack: checkinsMap[pt.id] || { checkedIn: false },
-        }));
+        })));
 
         const isPaid = potentialOrder.status === 'SETTLEMENT' || potentialOrder.status === 'CAPTURE';
         return res.status(200).json({
@@ -359,6 +370,7 @@ export const verifyRacepackCode = async (req: AuthenticatedRequest, res: Respons
       status: 'success',
       data: {
         participant,
+        racepackBenefits: await getRacepackBenefits(participant.eventId),
         isPaid,
         racepack: checkinInfo,
       },
@@ -385,7 +397,7 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
       });
     }
 
-    const { participantId, items = [], notes = '' } = parseResult.data;
+    const { participantId, items, notes = '' } = parseResult.data;
 
     const participant = await prisma.participant.findUnique({
       where: { id: participantId },
@@ -415,13 +427,6 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
       });
     }
 
-    // Jika belum punya nomor BIB dan timing adalah RACEPACK_CHECKIN, generate otomatis sekarang
-    const bibSettings = await getGlobalBibSettings();
-    let currentBibNumber = participant.bibNumber;
-    if (!currentBibNumber && bibSettings.timing === 'RACEPACK_CHECKIN') {
-      currentBibNumber = await assignBibToParticipant(participant.id);
-    }
-
     const checkinsMap = await getRacepackCheckinsMap();
     if (checkinsMap[participant.id]?.checkedIn) {
       return res.status(409).json({
@@ -443,6 +448,20 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
         message: 'Peserta ini dikirim ke antrean oleh admin lain.',
       });
     }
+    const benefits = await getRacepackBenefits(participant.eventId);
+    if (!benefits.length) {
+      return res.status(400).json({ status: 'error', message: 'Daftar racepack kategori belum diatur. Hubungi admin untuk memilih benefit racepack.' });
+    }
+    const selectedIds = new Set(items);
+    if (selectedIds.size !== items.length || items.length !== benefits.length || benefits.some(benefit => !selectedIds.has(benefit.id))) {
+      return res.status(400).json({ status: 'error', message: 'Centang semua perlengkapan yang berlaku. Jika daftar berubah, muat ulang data peserta.' });
+    }
+
+    const bibSettings = await getGlobalBibSettings();
+    let currentBibNumber = participant.bibNumber;
+    if (!currentBibNumber && bibSettings.timing === 'RACEPACK_CHECKIN') {
+      currentBibNumber = await assignBibToParticipant(participant.id);
+    }
     const admin = currentAdminId
       ? await prisma.admin.findUnique({ where: { id: currentAdminId }, select: { fullName: true, username: true } })
       : null;
@@ -457,13 +476,8 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
       queuedAt: checkinsMap[participant.id]?.queuedAt,
       queuedBy: checkinsMap[participant.id]?.queuedBy,
       queuedByAdminId: queueOwnerAdminId,
-      items: items.length > 0 ? items : [
-        `Nomor BIB (${currentBibNumber || 'Ditetapkan'})`,
-        `Jersey (${participant.selectedSize || 'M'})`,
-        'Timing Chip PASI',
-        'Goodie Bag & Panduan',
-        'Suplemen Sponsor'
-      ],
+      items: benefits.map(benefit => benefit.name),
+      benefitSnapshot: benefits.map(({ id, name }) => ({ id, name })),
       notes,
     };
 
@@ -480,6 +494,7 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
           checkedIn: true,
           checkedInAt: checkinData.checkedInAt,
           checkedInBy: adminIdentifier,
+          items: checkinData.items,
         },
       });
     }
@@ -492,6 +507,7 @@ export const checkinRacepack = async (req: AuthenticatedRequest, res: Response):
         checkedIn: true,
         checkedInAt: checkinData.checkedInAt,
         checkedInBy: adminIdentifier,
+        items: checkinData.items,
       },
     });
 

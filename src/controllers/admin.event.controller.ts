@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../config/database';
 import type { AuthenticatedRequest } from '../middlewares/auth';
 import { getEventRegistrationStatus } from '../utils/event-timing';
+import { parseRacepackBenefitIds, racepackBenefitsKey } from '../services/racepack-benefits.service';
 
 const jerseyBannerImagesSchema = z.array(z.string().url().refine(value => {
   try {
@@ -113,8 +114,14 @@ export const getAdminEvents = async (req: AuthenticatedRequest, res: Response): 
       orderBy: { createdAt: 'desc' },
     });
 
+    const racepackSettings = await prisma.appSetting.findMany({
+      where: { key: { in: events.map(event => racepackBenefitsKey(event.id)) } },
+      select: { key: true, value: true },
+    });
+    const settingsByKey = new Map(racepackSettings.map(setting => [setting.key, setting.value]));
     const formatted = events.map((event) => ({
       ...event,
+      racepackBenefitIds: parseRacepackBenefitIds(settingsByKey.get(racepackBenefitsKey(event.id))),
       ...getEventRegistrationStatus(event.eventDate, event.isClosed),
       price: Number(event.price),
       registeredCount: event._count?.participants || 0,
@@ -307,7 +314,10 @@ export const deleteEvent = async (req: AuthenticatedRequest, res: Response): Pro
       });
     }
 
-    await prisma.event.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.appSetting.deleteMany({ where: { key: racepackBenefitsKey(id) } }),
+      prisma.event.delete({ where: { id } }),
+    ]);
 
     await prisma.log.create({
       data: {
@@ -343,6 +353,33 @@ export const getEventBenefits = async (req: AuthenticatedRequest, res: Response)
     return res.status(200).json({ status: 'success', data: benefits });
   } catch (error) {
     return res.status(500).json({ status: 'error', message: 'Gagal mengambil benefit event.' });
+  }
+};
+
+export const saveEventRacepackBenefits = async (req: AuthenticatedRequest, res: Response): Promise<any> => {
+  try {
+    const parsed = z.object({ benefitIds: z.array(z.string().min(1)).max(500) }).safeParse(req.body);
+    if (!parsed.success || new Set(parsed.data?.benefitIds).size !== parsed.data?.benefitIds.length) {
+      return res.status(400).json({ status: 'error', message: 'Daftar benefit racepack tidak valid.' });
+    }
+    const eventId = req.params.eventId as string;
+    const event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
+    if (!event) return res.status(404).json({ status: 'error', message: 'Kategori tidak ditemukan.' });
+    const benefitIds = parsed.data.benefitIds;
+    const count = await prisma.eventBenefit.count({ where: { eventId, id: { in: benefitIds } } });
+    if (count !== benefitIds.length) {
+      return res.status(400).json({ status: 'error', message: 'Benefit tidak ditemukan atau bukan milik kategori ini. Muat ulang daftar benefit.' });
+    }
+    const key = racepackBenefitsKey(eventId);
+    await prisma.appSetting.upsert({
+      where: { key },
+      create: { key, value: JSON.stringify(benefitIds), description: 'Benefit racepack per kategori' },
+      update: { value: JSON.stringify(benefitIds) },
+    });
+    return res.status(200).json({ status: 'success', message: 'Daftar racepack berhasil disimpan.', data: { benefitIds } });
+  } catch (error) {
+    console.error('saveEventRacepackBenefits error:', error);
+    return res.status(500).json({ status: 'error', message: 'Gagal menyimpan daftar racepack.' });
   }
 };
 

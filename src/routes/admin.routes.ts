@@ -44,6 +44,7 @@ import {
   updateEvent,
   deleteEvent,
   getEventBenefits,
+  saveEventRacepackBenefits,
   addEventBenefit,
   updateEventBenefit,
   deleteEventBenefit,
@@ -201,6 +202,7 @@ router.delete('/events/:id', requirePermission('events:delete'), deleteEvent);
 
 // Benefits
 router.get('/events/:eventId/benefits', requirePermission('benefits:manage'), getEventBenefits);
+router.put('/events/:eventId/racepack-benefits', requirePermission('benefits:manage'), saveEventRacepackBenefits);
 router.post('/events/:eventId/benefits', requirePermission('benefits:manage'), addEventBenefit);
 router.put('/benefits/:id', requirePermission('benefits:manage'), updateEventBenefit);
 router.delete('/benefits/:id', requirePermission('benefits:manage'), deleteEventBenefit);
