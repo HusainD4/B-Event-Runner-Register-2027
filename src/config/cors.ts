@@ -15,7 +15,9 @@ export const allowedOrigins = [
   'https://www.haisen.my.id',
   'https://tegalrun2027.com',
   'https://pendaftaran-running.haisen.my.id',
-  'https://api.haisen.my.id'
+  'https://api.haisen.my.id',
+  'f-event-runner-register-2027-c28e6ocrl-mysensid-1738.vercel.app',
+  'f-event-runner-register-2027.vercel.app'
 ];
 
 export const isAllowedOrigin = (origin: string | undefined): boolean => Boolean(
