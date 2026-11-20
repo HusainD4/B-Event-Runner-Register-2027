@@ -16,17 +16,23 @@ export const allowedOrigins = [
   'https://tegalrun2027.com',
   'https://pendaftaran-running.haisen.my.id',
   'https://api.haisen.my.id',
-  'https://f-event-runner-register-2027-1hpyvtlky-mysensid-1738.vercel.app/',
-  'f-event-runner-register-2027.vercel.app'
+  'https://f-event-runner-register-2027.vercel.app'
 ];
 
-export const isAllowedOrigin = (origin: string | undefined): boolean => Boolean(
-  origin && (
-    (env.NODE_ENV !== 'production' && allowedOrigins.includes(origin)) ||
-    (env.NODE_ENV === 'production' && origin.startsWith('https://') && allowedOrigins.includes(origin)) ||
-    (env.NODE_ENV !== 'production' && /^http:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin))
-  )
-);
+const vercelPreviewOrigin = /^https:\/\/f-event-runner-register-2027-[a-z0-9]{8,12}-(?:husain-mulyansyah|mysensid-1738)\.vercel\.app$/i;
+
+export const isAllowedOrigin = (
+  origin: string | undefined,
+  nodeEnv: string = env.NODE_ENV
+): boolean => {
+  if (!origin) return false;
+  if (nodeEnv === 'production') {
+    return allowedOrigins.includes(origin) || vercelPreviewOrigin.test(origin);
+  }
+
+  return allowedOrigins.includes(origin)
+    || /^http:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin);
+};
 
 export const corsConfig: CorsOptions = {
   // Logika pengecekan asal request (origin)
