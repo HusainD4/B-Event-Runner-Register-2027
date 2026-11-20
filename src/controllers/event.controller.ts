@@ -12,6 +12,7 @@ const paidOrderStatuses: OrderStatus[] = ['SETTLEMENT', 'CAPTURE'];
 export const getAllEvents = async (req: Request, res: Response): Promise<any> => {
   try {
     const events = await prisma.event.findMany({
+        where: { isVisible: true },
         orderBy: { createdAt: 'desc' },
         include: {
           benefits: true,

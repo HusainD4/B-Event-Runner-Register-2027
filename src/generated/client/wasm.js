@@ -141,6 +141,7 @@ exports.Prisma.EventScalarFieldEnum = {
   eventDate: 'eventDate',
   followGlobalTimer: 'followGlobalTimer',
   isClosed: 'isClosed',
+  isVisible: 'isVisible',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

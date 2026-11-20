@@ -1,0 +1,2 @@
+ALTER TABLE `events`
+ADD COLUMN `isVisible` BOOLEAN NOT NULL DEFAULT true;

@@ -33,9 +33,15 @@ test('event catalog preserves actions and remains responsive', async () => {
       const mocks = {
         '/admin/js/core/state.js': 'export const adminState = window.state;',
         '/admin/js/pages/dashboard.js': 'export function updateKpis() {}',
+        '/admin/js/core/tabs.js': 'export function selectTab() {}',
         '/admin/js/core/api.js': `export async function fetchAdmin(url, options = {}) {
           window.calls.push({url, options});
-          if (options.method === 'PUT') return {status:'success'};
+          if (options.method === 'PUT') {
+            const eventId = url.split('/').pop();
+            const event = window.state.events.find(item => item.id === eventId);
+            if (event) Object.assign(event, JSON.parse(options.body));
+            return {status:'success'};
+          }
           if (url === '/admin/events') return {status:'success',data:window.state.events};
           return {status:'success',data:[]};
         }`,
@@ -87,13 +93,28 @@ test('event catalog preserves actions and remains responsive', async () => {
     assert.ok(box.width <= 250 && Math.abs(box.width - box.height) <= 1, JSON.stringify(box));
     await page.locator('.event-catalog-summary').first().click();
     assert.equal(await page.locator('#eventStock-event-1').isVisible(), true);
+    await page.locator('.btn-toggle-homepage-visibility[data-id="event-1"]').uncheck();
+    await page.waitForFunction(() => window.calls.some(call =>
+      call.url.endsWith('/event-1') && call.options.method === 'PUT'
+      && JSON.parse(call.options.body).isVisible === false
+    ));
+    await page.waitForFunction(() => document.querySelector('.btn-toggle-homepage-visibility[data-id="event-1"]')?.checked === false);
+    assert.equal(await page.locator('.event-catalog-card').first().getAttribute('open'), '');
+    const titleRow = await page.locator('.event-catalog-title-row').first().boundingBox();
+    const titleBounds = await page.locator('.event-catalog-title-row .admin-event-title').first().boundingBox();
+    const toggleBounds = await page.locator('.event-catalog-title-row .event-visibility-toggle').first().boundingBox();
+    assert.ok(
+      titleBounds.x + titleBounds.width < toggleBounds.x
+      && toggleBounds.x + toggleBounds.width <= titleRow.x + titleRow.width,
+      `visibility toggle should sit to the right of the ticket name: ${JSON.stringify({ titleRow, titleBounds, toggleBounds })}`
+    );
     for (const width of [1440, 768, 640, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       const buttons = await page.locator('.event-catalog-card').first().locator('.admin-event-actions .btn').all();
       const boxes = await Promise.all(buttons.map(button => button.boundingBox()));
       assert.equal(boxes.length, 6);
       for (let i = 1; i < boxes.length; i++) {
-        assert.ok(Math.abs(boxes[i].x - boxes[0].x) < 1 && Math.abs(boxes[i].width - boxes[0].width) < 1, `buttons not aligned at ${width}`);
+        assert.ok(Math.abs(boxes[i].x - boxes[0].x) < 1 && Math.abs(boxes[i].width - boxes[0].width) < 1, `buttons not aligned at ${width}: ${JSON.stringify(boxes)}`);
         assert.ok(boxes[i].y >= boxes[i - 1].y + boxes[i - 1].height, `buttons overlap at ${width}`);
       }
       if (width <= 640) {
@@ -131,7 +152,9 @@ test('event catalog preserves actions and remains responsive', async () => {
     await page.locator('#eventPrice-event-1').fill('123000');
     await page.locator('.btn-quick-save-event[data-id="event-1"]').click();
     await page.waitForFunction(() => window.calls.some(call => call.options.method === 'PUT'));
-    assert.deepEqual(await page.evaluate(() => JSON.parse(window.calls.find(call => call.options.method === 'PUT').options.body)), {stock:42, price:123000});
+    assert.deepEqual(await page.evaluate(() => JSON.parse(window.calls.find(call =>
+      call.options.method === 'PUT' && JSON.parse(call.options.body).stock !== undefined
+    ).options.body)), {stock:42, price:123000});
     await page.locator('.event-catalog-summary').first().click();
     await page.locator('.btn-manage-benefits[data-id="event-1"]').click();
     assert.equal(await page.locator('#modalEventBenefitsBackdrop').isVisible(), true);

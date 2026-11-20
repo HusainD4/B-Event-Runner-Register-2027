@@ -3214,6 +3214,7 @@ export namespace Prisma {
     eventDate: Date | null
     followGlobalTimer: boolean | null
     isClosed: boolean | null
+    isVisible: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -3229,6 +3230,7 @@ export namespace Prisma {
     eventDate: Date | null
     followGlobalTimer: boolean | null
     isClosed: boolean | null
+    isVisible: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -3244,6 +3246,7 @@ export namespace Prisma {
     eventDate: number
     followGlobalTimer: number
     isClosed: number
+    isVisible: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -3271,6 +3274,7 @@ export namespace Prisma {
     eventDate?: true
     followGlobalTimer?: true
     isClosed?: true
+    isVisible?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -3286,6 +3290,7 @@ export namespace Prisma {
     eventDate?: true
     followGlobalTimer?: true
     isClosed?: true
+    isVisible?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -3301,6 +3306,7 @@ export namespace Prisma {
     eventDate?: true
     followGlobalTimer?: true
     isClosed?: true
+    isVisible?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -3403,6 +3409,7 @@ export namespace Prisma {
     eventDate: Date | null
     followGlobalTimer: boolean
     isClosed: boolean
+    isVisible: boolean
     createdAt: Date
     updatedAt: Date
     _count: EventCountAggregateOutputType | null
@@ -3437,6 +3444,7 @@ export namespace Prisma {
     eventDate?: boolean
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     participants?: boolean | Event$participantsArgs<ExtArgs>
@@ -3458,6 +3466,7 @@ export namespace Prisma {
     eventDate?: boolean
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -3489,6 +3498,7 @@ export namespace Prisma {
       eventDate: Date | null
       followGlobalTimer: boolean
       isClosed: boolean
+      isVisible: boolean
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["event"]>
@@ -3874,6 +3884,7 @@ export namespace Prisma {
     readonly eventDate: FieldRef<"Event", 'DateTime'>
     readonly followGlobalTimer: FieldRef<"Event", 'Boolean'>
     readonly isClosed: FieldRef<"Event", 'Boolean'>
+    readonly isVisible: FieldRef<"Event", 'Boolean'>
     readonly createdAt: FieldRef<"Event", 'DateTime'>
     readonly updatedAt: FieldRef<"Event", 'DateTime'>
   }
@@ -16392,6 +16403,7 @@ export namespace Prisma {
     eventDate: 'eventDate',
     followGlobalTimer: 'followGlobalTimer',
     isClosed: 'isClosed',
+    isVisible: 'isVisible',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -16771,6 +16783,7 @@ export namespace Prisma {
     eventDate?: DateTimeNullableFilter<"Event"> | Date | string | null
     followGlobalTimer?: BoolFilter<"Event"> | boolean
     isClosed?: BoolFilter<"Event"> | boolean
+    isVisible?: BoolFilter<"Event"> | boolean
     createdAt?: DateTimeFilter<"Event"> | Date | string
     updatedAt?: DateTimeFilter<"Event"> | Date | string
     participants?: ParticipantListRelationFilter
@@ -16790,6 +16803,7 @@ export namespace Prisma {
     eventDate?: SortOrderInput | SortOrder
     followGlobalTimer?: SortOrder
     isClosed?: SortOrder
+    isVisible?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     participants?: ParticipantOrderByRelationAggregateInput
@@ -16812,6 +16826,7 @@ export namespace Prisma {
     eventDate?: DateTimeNullableFilter<"Event"> | Date | string | null
     followGlobalTimer?: BoolFilter<"Event"> | boolean
     isClosed?: BoolFilter<"Event"> | boolean
+    isVisible?: BoolFilter<"Event"> | boolean
     createdAt?: DateTimeFilter<"Event"> | Date | string
     updatedAt?: DateTimeFilter<"Event"> | Date | string
     participants?: ParticipantListRelationFilter
@@ -16831,6 +16846,7 @@ export namespace Prisma {
     eventDate?: SortOrderInput | SortOrder
     followGlobalTimer?: SortOrder
     isClosed?: SortOrder
+    isVisible?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: EventCountOrderByAggregateInput
@@ -16854,6 +16870,7 @@ export namespace Prisma {
     eventDate?: DateTimeNullableWithAggregatesFilter<"Event"> | Date | string | null
     followGlobalTimer?: BoolWithAggregatesFilter<"Event"> | boolean
     isClosed?: BoolWithAggregatesFilter<"Event"> | boolean
+    isVisible?: BoolWithAggregatesFilter<"Event"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Event"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Event"> | Date | string
   }
@@ -17873,6 +17890,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     participants?: ParticipantCreateNestedManyWithoutEventInput
@@ -17892,6 +17910,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     participants?: ParticipantUncheckedCreateNestedManyWithoutEventInput
@@ -17911,6 +17930,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUpdateManyWithoutEventNestedInput
@@ -17930,6 +17950,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUncheckedUpdateManyWithoutEventNestedInput
@@ -17949,6 +17970,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -17964,6 +17986,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17979,6 +18002,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -19202,6 +19226,7 @@ export namespace Prisma {
     eventDate?: SortOrder
     followGlobalTimer?: SortOrder
     isClosed?: SortOrder
+    isVisible?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -19222,6 +19247,7 @@ export namespace Prisma {
     eventDate?: SortOrder
     followGlobalTimer?: SortOrder
     isClosed?: SortOrder
+    isVisible?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -19237,6 +19263,7 @@ export namespace Prisma {
     eventDate?: SortOrder
     followGlobalTimer?: SortOrder
     isClosed?: SortOrder
+    isVisible?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -21457,6 +21484,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     participants?: ParticipantCreateNestedManyWithoutEventInput
@@ -21475,6 +21503,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     participants?: ParticipantUncheckedCreateNestedManyWithoutEventInput
@@ -21509,6 +21538,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUpdateManyWithoutEventNestedInput
@@ -21527,6 +21557,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUncheckedUpdateManyWithoutEventNestedInput
@@ -21545,6 +21576,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     participants?: ParticipantCreateNestedManyWithoutEventInput
@@ -21563,6 +21595,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     participants?: ParticipantUncheckedCreateNestedManyWithoutEventInput
@@ -21655,6 +21688,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUpdateManyWithoutEventNestedInput
@@ -21673,6 +21707,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUncheckedUpdateManyWithoutEventNestedInput
@@ -22029,6 +22064,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     benefits?: EventBenefitCreateNestedManyWithoutEventInput
@@ -22047,6 +22083,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     benefits?: EventBenefitUncheckedCreateNestedManyWithoutEventInput
@@ -22164,6 +22201,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     benefits?: EventBenefitUpdateManyWithoutEventNestedInput
@@ -22182,6 +22220,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     benefits?: EventBenefitUncheckedUpdateManyWithoutEventNestedInput
@@ -22558,6 +22597,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     participants?: ParticipantCreateNestedManyWithoutEventInput
@@ -22576,6 +22616,7 @@ export namespace Prisma {
     eventDate?: Date | string | null
     followGlobalTimer?: boolean
     isClosed?: boolean
+    isVisible?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     participants?: ParticipantUncheckedCreateNestedManyWithoutEventInput
@@ -22610,6 +22651,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUpdateManyWithoutEventNestedInput
@@ -22628,6 +22670,7 @@ export namespace Prisma {
     eventDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followGlobalTimer?: BoolFieldUpdateOperationsInput | boolean
     isClosed?: BoolFieldUpdateOperationsInput | boolean
+    isVisible?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     participants?: ParticipantUncheckedUpdateManyWithoutEventNestedInput

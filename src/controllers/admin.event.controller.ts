@@ -55,6 +55,7 @@ const updateEventSchema = z.object({
   eventDate: z.string().nullable().optional(),
   followGlobalTimer: z.boolean().optional(),
   isClosed: z.boolean().optional(),
+  isVisible: z.boolean().optional(),
 });
 
 const benefitSchema = z.object({

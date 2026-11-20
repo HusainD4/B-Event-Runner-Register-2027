@@ -12,6 +12,7 @@ export const DEFAULT_WEBSITE_SETTINGS: Record<string, string> = {
   // Website Identity & Hero
   site_title: "Tegal Run 2026 - Official Half Marathon & 5K Festival",
   site_tagline: "Lari Bersama Menembus Batas di Kota Bahari",
+  platform_name: "SIEXA",
   navbar_title: "TEGAL RUN 2026",
   navbar_icon_mode: "ICON",
   navbar_icon: "fa-person-running",
@@ -623,6 +624,7 @@ export const updateWebsiteSettings = async (req: AuthenticatedRequest, res: Resp
       'fa-sun', 'fa-water', 'fa-compass', 'fa-crown', 'fa-leaf'
     ] as const;
     const navbarSettingsSchema = z.object({
+      platform_name: z.string().trim().min(1, 'Nama platform wajib diisi.').max(40, 'Nama platform maksimal 40 karakter.').optional(),
       navbar_title: z.string().trim().max(80, 'Judul navbar maksimal 80 karakter.').optional(),
       navbar_icon_mode: z.enum(['ICON', 'IMAGE']).optional(),
       navbar_icon: z.enum(navbarIconOptions).optional(),

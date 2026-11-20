@@ -63,6 +63,8 @@ test('CMS tabs retain drafts, preserve global save and expose invalid fields', a
     assert.equal(await page.locator('#pane-cms [role="tab"]').count(), 10);
     await page.locator('#cmsTabHero').click();
     await page.locator('#cmsSiteTitle').fill('Judul baru');
+    await page.locator('#cmsPlatformName').fill('SIEXA RUN');
+    assert.equal(await page.locator('#cmsPlatformNamePreview').textContent(), 'SIEXA RUN');
     await page.locator('#cmsTabContact').click();
     await page.locator('#cmsContactEmail').fill('email-tidak-valid');
     await page.locator('#cmsTabFaq').click();
@@ -82,6 +84,7 @@ test('CMS tabs retain drafts, preserve global save and expose invalid fields', a
     await page.locator('#btnSaveCmsSubmit').click();
     await page.waitForFunction(() => window.saved.length === 1);
     assert.equal(await page.evaluate(() => window.saved[0].site_title), 'Judul baru');
+    assert.equal(await page.evaluate(() => window.saved[0].platform_name), 'SIEXA RUN');
     assert.equal(await page.evaluate(() => window.saved[0].contact_phone), '08123456789');
     await page.locator('#cmsTabHero').click();
     assert.equal(await page.locator('#cmsSiteTitle').inputValue(), 'Judul baru');

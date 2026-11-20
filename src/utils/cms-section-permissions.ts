@@ -4,7 +4,7 @@ export const CMS_SECTION_CONFIGURED = 'section:cms-configured';
 export const CMS_SECTIONS = [
   { key: 'section:cms-visibility', label: 'Tampilan website', fields: ['cms_visibility'] },
   { key: 'section:cms-hero', label: 'Identitas, hero & warna', fields: [
-    'site_title', 'site_tagline', 'navbar_title', 'navbar_icon_mode', 'navbar_icon', 'navbar_icon_url', 'favicon_url',
+    'site_title', 'site_tagline', 'platform_name', 'navbar_title', 'navbar_icon_mode', 'navbar_icon', 'navbar_icon_url', 'favicon_url',
     'hero_badge', 'hero_title', 'hero_animation', 'hero_subtitle', 'hero_bg_image', 'theme_primary_color',
     'theme_background_color', 'theme_surface_color', 'theme_border_color', 'theme_heading_color', 'theme_text_color',
     'theme_muted_color', 'theme_nav_color', 'theme_button_color', 'theme_button_text_color', 'theme_glow_color',
